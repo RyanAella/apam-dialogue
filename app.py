@@ -1,5 +1,10 @@
 import streamlit as st
 from openai import OpenAI
+import os
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 # 1. SETUP & DATA LOADING
 with open("prompts/roleplay.txt", "r", encoding="utf-8") as f:
@@ -9,7 +14,11 @@ with open("prompts/analyze.txt", "r", encoding="utf-8") as f:
     mentor_instructions = f.read()
 
 # 1. Setup OpenAI Client
-client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
+api_key = os.getenv("OPENAI_API_KEY")
+if not api_key:
+    st.error("OPENAI_API_KEY not found! Check your .env file.")
+    st.stop()
+client = OpenAI(api_key=api_key)
 
 st.title("Step 4: Real AI Power")
 
