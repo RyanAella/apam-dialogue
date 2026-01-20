@@ -6,6 +6,8 @@ from dotenv import load_dotenv
 # Load environment variables from .env file
 load_dotenv()
 
+st.title("SI Dialogue Lab")
+
 # 1. SETUP & DATA LOADING
 SCENARIOS = {
     "1. VP of Engineering – Strategic DEI Consulting Pitch": "scenario_1.txt",
@@ -32,8 +34,6 @@ if not api_key:
     st.error("OPENAI_API_KEY not found! Check your .env file.")
     st.stop()
 client = OpenAI(api_key=api_key)
-
-st.title("SI Dialogue Lab")
 
 # 2. INITIALIZATION (The Safe)
 if "chat_history" not in st.session_state:
