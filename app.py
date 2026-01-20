@@ -7,8 +7,18 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # 1. SETUP & DATA LOADING
-with open("prompts/roleplay.txt", "r", encoding="utf-8") as f:
-    full_scenario = f.read()
+# with open("prompts/roleplay.txt", "r", encoding="utf-8") as f:
+#     full_scenario = f.read()
+prompt_files = [f for f in os.listdir("prompts/scenarios") if f.endswith(".txt")]
+selected_prompt = st.selectbox(
+    "Choose a scenario:",
+    [
+        "1. VP of Engineering – Strategic DEI Consulting Pitch",
+    ]
+)
+
+with open(os.path.join("prompts", selected_prompt), "r", encoding="utf-8") as f:
+     full_scenario = f.read()
 
 with open("prompts/analyze.txt", "r", encoding="utf-8") as f:
     mentor_instructions = f.read()
@@ -20,7 +30,7 @@ if not api_key:
     st.stop()
 client = OpenAI(api_key=api_key)
 
-st.title("Step 4: Real AI Power")
+st.title("SI Dialogue Lab")
 
 # 2. INITIALIZATION (The Safe)
 if "chat_history" not in st.session_state:
