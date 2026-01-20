@@ -3,9 +3,10 @@ from openai import OpenAI
 import os
 from dotenv import load_dotenv
 
-# Load environment variables from .env file
+# Load environment variables
 load_dotenv()
 
+st.set_page_config(page_title="SI Dialogue Lab", layout="centered")
 st.title("SI Dialogue Lab")
 
 # 1. SETUP & DATA LOADING
@@ -14,56 +15,79 @@ SCENARIOS = {
     # Add other scenarios here
 }
 
-# Let user choose a scenario by its friendly name
 selected_scenario_name = st.selectbox("Choose a scenario:", list(SCENARIOS.keys()))
-
-# Get the actual filename from the selection
 selected_filename = SCENARIOS[selected_scenario_name]
-
-# Construct the full path and read the file
 scenario_path = os.path.join("prompts", "scenarios", selected_filename)
-with open(scenario_path, "r", encoding="utf-8") as f:
-    full_scenario = f.read()
+
+# Load Scenario and parse metadata
+if os.path.exists(scenario_path):
+    with open(scenario_path, "r", encoding="utf-8") as f:
+        raw_content = f.read()
+    
+    parts = raw_content.split("---", 1)
+    header = parts[0]
+    full_scenario = parts[1] if len(parts) > 1 else raw_content
+
+    # Extract dynamic name
+    ai_name = "The Partner"
+    for line in header.split("\n"):
+        if line.startswith("NAME:"):
+            ai_name = line.replace("NAME:", "").strip()
+else:
+    st.error(f"File {selected_filename} not found.")
+    st.stop()
 
 with open("prompts/analyze.txt", "r", encoding="utf-8") as f:
     mentor_instructions = f.read()
 
-# 1. Setup OpenAI Client
-api_key = os.getenv("OPENAI_API_KEY")
-if not api_key:
-    st.error("OPENAI_API_KEY not found! Check your .env file.")
-    st.stop()
-client = OpenAI(api_key=api_key)
-
-# 2. INITIALIZATION (The Safe)
-if "chat_history" not in st.session_state:
+# --- 2. INITIALIZATION (With Scenario Reset) ---
+# If the scenario changes, we must wipe the history to trigger a new auto-start
+if "current_scenario" not in st.session_state or st.session_state.current_scenario != selected_scenario_name:
     st.session_state.chat_history = [{"role": "system", "content": full_scenario}]
     st.session_state.finished = False
+    st.session_state.current_scenario = selected_scenario_name
+    st.session_state.ai_name = ai_name
+    # Clear old feedback when switching scenarios
+    if "mentor_feedback" in st.session_state:
+        del st.session_state.mentor_feedback
+    st.rerun()
 
-# 3. AUTO-START (Marc speaks first)
+# Setup OpenAI Client
+api_key = os.getenv("OPENAI_API_KEY")
+client = OpenAI(api_key=api_key)
+
+# --- 3. DYNAMIC AUTO-START (The AI opens the meeting) ---
 if len(st.session_state.chat_history) == 1:
-    with st.spinner("Marc is entering the room..."):
+    with st.spinner(f"{st.session_state.ai_name} is preparing the meeting..."):
+        # We append a temporary "trigger" instruction to get a strong opening
+        trigger_prompt = st.session_state.chat_history + [
+            {"role": "system", "content": f"You are {st.session_state.ai_name}. Start the meeting now. Be direct, perhaps a bit skeptical or impatient, and set the tone. Do not greet with 'Hello, how can I help you?'. Instead, start with a statement about your situation or a direct challenge to the consultant."}
+        ]
+
         response = client.chat.completions.create(
             model="gpt-4o-mini",
-            messages=st.session_state.chat_history
+            messages=trigger_prompt,
+            temperature=0.8 # Higher temperature for a more creative/natural opening
         )
         first_message = response.choices[0].message.content
         st.session_state.chat_history.append({"role": "assistant", "content": first_message})
         st.rerun()
 
-# 4. DISPLAY CHAT
+# --- 4. DISPLAY CHAT ---
 for message in st.session_state.chat_history:
     if message["role"] != "system":
+        label = "You" if message["role"] == "user" else st.session_state.ai_name
         with st.chat_message(message["role"]):
-            st.write(message["content"])
+            st.write(f"**{label}:** {message['content']}")
 
-# 5. CHAT INPUT (Only if not finished)
+# --- 5. CHAT INPUT ---
 if not st.session_state.get("finished", False):
-    if user_input := st.chat_input("Your reply to Marc..."):
+    if user_input := st.chat_input(f"Your reply to {st.session_state.ai_name}..."):
         st.session_state.chat_history.append({"role": "user", "content": user_input})
 
+        # Display user message immediately
         with st.chat_message("user"):
-            st.write(user_input)
+            st.write(f"**You:** {user_input}")
 
         response = client.chat.completions.create(
             model="gpt-4o-mini",
@@ -73,50 +97,39 @@ if not st.session_state.get("finished", False):
         st.session_state.chat_history.append({"role": "assistant", "content": ai_answer})
         st.rerun()
 
-# --- 6. THE FINALE: ANALYSIS MODE ---
+# --- 6. ANALYSIS & RESTART ---
 st.divider()
-
-# Check the state safely
 is_finished = st.session_state.get("finished", False)
 
 if not is_finished:
-    # Button to end the session
-    if st.button("End Conversation & Get Mentor Feedback"):
-        st.session_state.finished = True
-        st.rerun()
+    col1, col2 = st.columns(2)
+    with col1:
+        if st.button("Reset Conversation", use_container_width=True):
+            del st.session_state.chat_history
+            st.rerun()
+    with col2:
+        if st.button("End & Get Feedback", type="primary", use_container_width=True):
+            st.session_state.finished = True
+            st.rerun()
 else:
-    # WE ARE IN ANALYSIS MODE
     st.header("Mentor Feedback")
     
-    # 1. IMMEDIATE RESTART (Place this ABOVE the analysis)
-    if st.button("Restart Training"):
+    if st.button("Start New Session"):
         keys_to_clear = ["chat_history", "finished", "mentor_feedback"]
         for key in keys_to_clear:
             if key in st.session_state:
                 del st.session_state[key]
-        st.rerun() # Stop everything and jump to the very top!
+        st.rerun()
 
-    # 2. ANALYSIS LOGIC (Only runs if we haven't just clicked Restart)
-    if "chat_history" in st.session_state: 
-        if "mentor_feedback" not in st.session_state:
-            with st.spinner("Analyzing your conversation..."):
-                mentor_request = [
-                    {"role": "system", "content": mentor_instructions},
-                    {"role": "system", "content": f"Transcript: {str(st.session_state.chat_history)}"}
-                ]
-                response = client.chat.completions.create(
-                    model="gpt-4o-mini",
-                    messages=mentor_request
-                )
-                st.session_state.mentor_feedback = response.choices[0].message.content
-        
-        # Display the result
-        st.info(st.session_state.mentor_feedback)
-
-        # --- DOWNLOAD FEEDBACK ---
-        st.download_button(
-            label="Download Analysis as TXT",
-            data=st.session_state.mentor_feedback,
-            file_name="DEI_Mentor_Feedback.txt",
-            mime="text/plain"
-        )
+    if "mentor_feedback" not in st.session_state:
+        with st.spinner("Analyzing performance..."):
+            mentor_request = [
+                {"role": "system", "content": mentor_instructions},
+                {"role": "system", "content": f"Transcript: {str(st.session_state.chat_history)}"}
+            ]
+            resp = client.chat.completions.create(model="gpt-4o-mini", messages=mentor_request)
+            st.session_state.mentor_feedback = resp.choices[0].message.content
+    
+    st.info(st.session_state.mentor_feedback)
+    st.download_button("Download Feedback", st.session_state.mentor_feedback, file_name="feedback.txt")
+    
