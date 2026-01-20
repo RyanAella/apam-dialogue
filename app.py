@@ -7,18 +7,21 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # 1. SETUP & DATA LOADING
-# with open("prompts/roleplay.txt", "r", encoding="utf-8") as f:
-#     full_scenario = f.read()
-prompt_files = [f for f in os.listdir("prompts/scenarios") if f.endswith(".txt")]
-selected_prompt = st.selectbox(
-    "Choose a scenario:",
-    [
-        "1. VP of Engineering – Strategic DEI Consulting Pitch",
-    ]
-)
+SCENARIOS = {
+    "1. VP of Engineering – Strategic DEI Consulting Pitch": "scenario_1.txt",
+    # Add other scenarios here
+}
 
-with open(os.path.join("prompts/scenarios", selected_prompt), "r", encoding="utf-8") as f:
-     full_scenario = f.read()
+# Let user choose a scenario by its friendly name
+selected_scenario_name = st.selectbox("Choose a scenario:", list(SCENARIOS.keys()))
+
+# Get the actual filename from the selection
+selected_filename = SCENARIOS[selected_scenario_name]
+
+# Construct the full path and read the file
+scenario_path = os.path.join("prompts", "scenarios", selected_filename)
+with open(scenario_path, "r", encoding="utf-8") as f:
+    full_scenario = f.read()
 
 with open("prompts/analyze.txt", "r", encoding="utf-8") as f:
     mentor_instructions = f.read()
