@@ -17,7 +17,7 @@ selected_prompt = st.selectbox(
     ]
 )
 
-with open(os.path.join("prompts", selected_prompt), "r", encoding="utf-8") as f:
+with open(os.path.join("prompts/scenarios", selected_prompt), "r", encoding="utf-8") as f:
      full_scenario = f.read()
 
 with open("prompts/analyze.txt", "r", encoding="utf-8") as f:
