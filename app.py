@@ -60,7 +60,7 @@ st.markdown(user_instruction)
 # --- 2. INITIALIZATION (With Scenario Reset) ---
 # If the scenario changes, we must wipe the history to trigger a new auto-start
 if "current_scenario" not in st.session_state or st.session_state.current_scenario != selected_scenario_name:
-    namens_anweisung = "\n\nNAMENSWAHL: Wähle zu Beginn einen Namen für dich (männlich oder weiblich, z.B. Marc, Thomas, Sarah oder Julia). Bleibe das gesamte Gespräch über bei diesem Namen. Nenne deinen Namen nur, wenn es absolut natürlich ist, sonst warte, bis du danach gefragt wirst oder angesprochen wirst."
+    namens_anweisung = "\n\nNAMENSWAHL: Wähle zu Beginn einen Namen für dich (männlich oder weiblich, z.B. Marc, Thomas, Sarah oder Julia). Bleibe das gesamte Gespräch über bei diesem Namen."
     
     st.session_state.chat_history = [{"role": "system", "content": full_ki_logic + namens_anweisung}]
     st.session_state.finished = False
@@ -78,7 +78,8 @@ if len(st.session_state.chat_history) == 1:
         trigger_instruction = (
             "Lies deine Rollenbeschreibung oben genau. Beginne das Rollenspiel jetzt, "
             "indem du den ersten Satz sagst. Wähle einen Namen für dich, "
-            "der zu deiner Rolle passt (männlich oder weiblich)."
+            "der zu deiner Rolle passt (männlich oder weiblich). " \
+            "Nenne deinen Namen nur, wenn es absolut natürlich ist, sonst warte, bis du danach gefragt wirst oder angesprochen wirst."
         )
 
         trigger_prompt = st.session_state.chat_history + [
