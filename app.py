@@ -76,10 +76,11 @@ if len(st.session_state.chat_history) == 1:
     with st.spinner("Gesprächspartner:in tritt dem Raum bei..."):
         
         trigger_instruction = (
-            "Lies deine Rollenbeschreibung oben genau. Beginne das Rollenspiel jetzt, "
-            "indem du den ersten Satz sagst. Wähle einen Namen für dich, "
-            "der zu deiner Rolle passt (männlich oder weiblich). " \
-            "Nenne deinen Namen nur, wenn es absolut natürlich ist, sonst warte, bis du danach gefragt wirst oder angesprochen wirst."
+            "Lies deine Rollenbeschreibung oben genau. Beginne das Rollenspiel jetzt mit deinem ersten Satz. "
+            "Wähle einen passenden Namen (männlich oder weiblich) für dich, aber nenne ihn NICHT sofort, "
+            "es sei denn, die Situation erfordert eine förmliche Vorstellung. "
+            "Reagiere stattdessen unmittelbar auf den Kontext des Szenarios (z.B. die aktuelle Arbeit, "
+            "die Einladung zum Gespräch oder die Erwartungshaltung gegenüber deinem Gegenüber)."
         )
 
         trigger_prompt = st.session_state.chat_history + [
