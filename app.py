@@ -54,14 +54,13 @@ else:
     st.error(f"Analyse-Datei {selected_analysis_file} nicht gefunden.")
     st.stop()
 
-st.subheader("Vorbereitung")
-with st.expander("Deine Instruktionen & Hintergrund lesen", expanded=True):
-    st.markdown(user_instruction)
+st.subheader("Briefing für das Gespräch")
+st.markdown(user_instruction)
 
 # --- 2. INITIALIZATION (With Scenario Reset) ---
 # If the scenario changes, we must wipe the history to trigger a new auto-start
 if "current_scenario" not in st.session_state or st.session_state.current_scenario != selected_scenario_name:
-    namens_anweisung = "\n\nNAMENSWAHL: Wähle zu Beginn einen Namen für dich (männlich oder weiblich, z.B. Marc, Thomas, Sarah oder Julia). Bleibe das gesamte Gespräch über bei diesem Namen."
+    namens_anweisung = "\n\nNAMENSWAHL: Wähle zu Beginn einen Namen für dich (männlich oder weiblich, z.B. Marc, Thomas, Sarah oder Julia). Bleibe das gesamte Gespräch über bei diesem Namen. Nenne deinen Namen nur, wenn es absolut natürlich ist, sonst warte, bis du danach gefragt wirst oder angesprochen wirst."
     
     st.session_state.chat_history = [{"role": "system", "content": full_ki_logic + namens_anweisung}]
     st.session_state.finished = False
