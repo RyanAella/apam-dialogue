@@ -1,8 +1,0 @@
-MODE=ANALYZE
-Focus on:
-- Discovery quality about the business cost of attrition
-- Objection handling (especially “DEI is fluffy”)
-Also: identify 2 sentences I said that would have been powerful leverage points and tell me exactly what question I should have asked in those moments.
-
-TRANSCRIPT:
-[paste the transcript]

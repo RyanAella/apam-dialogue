@@ -14,12 +14,12 @@ st.title("SI Dialogue Lab")
 # 1. SETUP & DATA LOADING
 SCENARIOS = {
     "Verspätungen beim Reporting": {
-        "scenario": "scenario_controlling.txt",
-        "analysis": "analyze_controlling.txt"
+        "scenario": "scenario_reporting.txt",
+        "analysis": "analyze_reporting.txt"
     },
-    "1. VP of Engineering – Strategic DEI Consulting Pitch": {
-        "scenario": "scenario_1.txt",
-        "analysis": "analyze.txt"
+    "Frühzeitiges Melden bei Schwierigkeiten": {
+        "scenario": "scenario_difficulties.txt",
+        "analysis": "analyze_difficulties.txt"
     }
 }
 
