@@ -57,12 +57,12 @@ else:
 st.subheader("Briefing für das Gespräch")
 st.markdown(user_instruction)
 
-# --- 2. INITIALIZATION (With Scenario Reset) ---
-# If the scenario changes, we must wipe the history to trigger a new auto-start
+# --- 2. INITIALIZATION ---
 if "current_scenario" not in st.session_state or st.session_state.current_scenario != selected_scenario_name:
-    namens_anweisung = "\n\nNAMENSWAHL: Wähle zu Beginn einen Namen für dich (männlich oder weiblich, z.B. Marc, Thomas, Sarah oder Julia). Bleibe das gesamte Gespräch über bei diesem Namen."
+    warte_anweisung = "\n\nWARTE AUF START: Der User wird das Gespräch eröffnen. Reagiere dann direkt in deiner Rolle."
+    namens_anweisung = "\nNAMENSWAHL: Wähle einen Namen für dich (z.B. Marc, Sarah), aber nenne ihn erst, wenn es passt."
     
-    st.session_state.chat_history = [{"role": "system", "content": full_ki_logic + namens_anweisung}]
+    st.session_state.chat_history = [{"role": "system", "content": full_ki_logic + warte_anweisung + namens_anweisung}]
     st.session_state.finished = False
     st.session_state.current_scenario = selected_scenario_name
     st.rerun()
@@ -71,36 +71,13 @@ if "current_scenario" not in st.session_state or st.session_state.current_scenar
 api_key = os.getenv("OPENAI_API_KEY")
 client = OpenAI(api_key=api_key)
 
-# --- 3. DYNAMIC AUTO-START (The AI opens the meeting) ---
+# --- 3. START-HINWEIS FÜR USER ---
 if len(st.session_state.chat_history) == 1:
-    with st.spinner("Gesprächspartner:in tritt dem Raum bei..."):
-        
-        trigger_instruction = (
-            "Lies deine Rollenbeschreibung oben genau. Beginne das Rollenspiel jetzt mit deinem ersten Satz. "
-            "Wähle einen passenden Namen (männlich oder weiblich) für dich, aber nenne ihn NICHT sofort, "
-            "es sei denn, die Situation erfordert eine förmliche Vorstellung. "
-            "Reagiere stattdessen unmittelbar auf den Kontext des Szenarios (z.B. die aktuelle Arbeit, "
-            "die Einladung zum Gespräch oder die Erwartungshaltung gegenüber deinem Gegenüber)."
-        )
-
-        trigger_prompt = st.session_state.chat_history + [
-            {"role": "system", "content": trigger_instruction}
-        ]
-
-        response = client.chat.completions.create(
-            model=model,
-            messages=trigger_prompt,
-            temperature=0.7 # Higher temperature for a more creative/natural opening
-        )
-
-        first_message = response.choices[0].message.content
-        st.session_state.chat_history.append({"role": "assistant", "content": first_message})
-        st.rerun()
+    st.info("Der Raum ist bereit. Bitte eröffnen Sie das Gespräch über das Eingabefeld unten.")
 
 # --- 4. DISPLAY CHAT ---
 for message in st.session_state.chat_history:
     if message["role"] != "system":
-        # Neutrales Label, da der Name ja im Text der KI vorkommt
         label = "Du" if message["role"] == "user" else "Gegenüber"
         with st.chat_message(message["role"]):
             st.write(f"**{label}:** {message['content']}")
