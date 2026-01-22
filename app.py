@@ -1,6 +1,7 @@
 import streamlit as st
 from openai import OpenAI
 import os
+import re
 from dotenv import load_dotenv
 
 # Load environment variables
@@ -11,7 +12,15 @@ model = "gpt-4o"
 st.set_page_config(page_title="SI Dialogue Lab", layout="centered")
 st.title("SI Dialogue Lab")
 
-# 1. SETUP & DATA LOADING
+# --- 1. HELP FUNCTION FOR AUTOMATIC RECOGNITION ---
+def extract_role_label(text):
+    """Extrahiert die Rolle (z.B. Mitarbeiterin) aus dem partner_de Block."""
+    match = re.search(r"DU BIST (?:DIE|DER)\s+([A-ZÄÖÜa-zäöü]+)", text)
+    if match:
+        return match.group(1).strip()
+    return "Gesprächspartner*in"
+
+# 2. SETUP & DATA LOADING
 SCENARIOS = {
     "Verspätungen beim Reporting": {
         "scenario": "scenario_reporting.txt",
@@ -24,40 +33,40 @@ SCENARIOS = {
 }
 
 selected_scenario_name = st.selectbox("Wählen Sie ein Szenario:", list(SCENARIOS.keys()))
-
 selected_files = SCENARIOS[selected_scenario_name]
-selected_scenario_file = selected_files["scenario"]
-selected_analysis_file = selected_files["analysis"]
 
-scenario_path = os.path.join("prompts", "scenarios", selected_scenario_file)
-analysis_path = os.path.join("prompts", "analysis", selected_analysis_file)
+scenario_path = os.path.join("prompts", "scenarios", selected_files["scenario"])
+analysis_path = os.path.join("prompts", "analysis", selected_files["analysis"])
 
 # Load Scenario and parse metadata
 if os.path.exists(scenario_path):
     with open(scenario_path, "r", encoding="utf-8") as f:
         raw_content = f.read()
 
+    if "partner_de =" in raw_content:
+        role_part = raw_content.split("partner_de =")[1]
+        ai_display_name = extract_role_label(role_part)
+    else:
+        ai_display_name = "Gesprächspartner*in"
+
     content_parts = raw_content.split("### SYSTEM PROMPT ###")
-    # Alles vor ### SYSTEM PROMPT ### ist für den User
     user_instruction = content_parts[0].replace("### GUI INSTRUCTION ###", "").strip()
-    # Alles danach ist das Regelwerk für die KI
     full_ki_logic = content_parts[1].strip() if len(content_parts) > 1 else raw_content
 else:
     st.error(f"Szenario-Datei nicht gefunden.")
     st.stop()
 
-# NEU: Dynamisches Laden der Analyse-Datei
 if os.path.exists(analysis_path):
     with open(analysis_path, "r", encoding="utf-8") as f:
         mentor_instructions = f.read()
 else:
-    st.error(f"Analyse-Datei {selected_analysis_file} nicht gefunden.")
+    st.error(f"Analyse-Datei nicht gefunden.")
     st.stop()
 
 st.subheader("Briefing für das Gespräch")
 st.markdown(user_instruction)
 
-# --- 2. INITIALIZATION ---
+# --- 3. INITIALIZATION ---
 if "current_scenario" not in st.session_state or st.session_state.current_scenario != selected_scenario_name:
     warte_anweisung = "\n\nWARTE AUF START: Der User wird das Gespräch eröffnen. Reagiere dann direkt in deiner Rolle."
     namens_anweisung = "\nNAMENSWAHL: Wähle einen Namen für dich (z.B. Marc, Sarah), aber nenne ihn erst, wenn es passt."
@@ -71,28 +80,20 @@ if "current_scenario" not in st.session_state or st.session_state.current_scenar
 api_key = os.getenv("OPENAI_API_KEY")
 client = OpenAI(api_key=api_key)
 
-# --- 3. START-HINWEIS FÜR USER ---
+# --- 4. START NOTE & CHAT DISPLAY ---
 if len(st.session_state.chat_history) == 1:
     st.info("Der Raum ist bereit. Bitte eröffnen Sie das Gespräch über das Eingabefeld unten.")
 
-# --- 4. DISPLAY CHAT ---
 for message in st.session_state.chat_history:
     if message["role"] != "system":
-        label = "Du" if message["role"] == "user" else "Gegenüber"
+        label = "Du" if message["role"] == "user" else "Gesprächspartner*in"
         with st.chat_message(message["role"]):
             st.write(f"**{label}:** {message['content']}")
 
 # --- 5. CHAT INPUT ---
 if not st.session_state.get("finished", False):
-    # Wir nutzen ein neutrales Label oder fragen das Dictionary ab
-    prompt_placeholder = "Schreiben Sie Ihre Antwort..."
-    
-    if user_input := st.chat_input(prompt_placeholder):
-        # Nachricht zur Historie hinzufügen
+    if user_input := st.chat_input("Schreiben Sie Ihre Antwort..."):
         st.session_state.chat_history.append({"role": "user", "content": user_input})
-
-        # Der API-Aufruf erfolgt nun mit der gesamten Historie
-        # (Inklusive des System-Prompts deiner Chefin am Anfang)
         try:
             response = client.chat.completions.create(
                 model=model,
@@ -102,11 +103,9 @@ if not st.session_state.get("finished", False):
             st.session_state.chat_history.append({"role": "assistant", "content": ai_answer})
         except Exception as e:
             st.error(f"Fehler bei der Anfrage: {e}")
-        
-        # Seite neu laden, um die neue Antwort oben anzuzeigen
         st.rerun()
 
-# --- 6. ANALYSIS & RESTART ---
+# --- 6. BUTTONS & ANALYSIS ---
 st.divider()
 is_finished = st.session_state.get("finished", False)
 
@@ -122,27 +121,25 @@ if not is_finished:
             st.rerun()
 else:
     st.header("Mentor Feedback")
-    
-    if st.button("Neues Gespräch beginnen", use_container_width=True):
-        for key in ["chat_history", "finished", "mentor_feedback", "current_scenario"]:
-            if key in st.session_state:
-                del st.session_state[key]
-        st.rerun()
-
     if "mentor_feedback" not in st.session_state:
         with st.spinner("Analysiere das Gespräch..."):
             chat_transcript = [m for m in st.session_state.chat_history if m["role"] != "system"]
-            
             mentor_request = [
                 {"role": "system", "content": mentor_instructions},
-                {"role": "system", "content": f"Hier ist das Gesprächsprotokoll: {str(chat_transcript)}"}
+                {"role": "system", "content": f"Gesprächsprotokoll: {str(chat_transcript)}"}
             ]
-
             try:
                 resp = client.chat.completions.create(model=model, messages=mentor_request)
                 st.session_state.mentor_feedback = resp.choices[0].message.content
             except Exception as e:
-                st.error(f"Fehler bei der Analyse: {e}")
+                st.error(f"Fehler: {e}")
+    
+    if "mentor_feedback" in st.session_state:
+        st.markdown(st.session_state.mentor_feedback)
+        if st.button("Neues Gespräch beginnen"):
+            for key in ["chat_history", "finished", "mentor_feedback", "current_scenario"]:
+                st.session_state.pop(key, None)
+            st.rerun()
     
     if "mentor_feedback" in st.session_state:
         st.markdown(st.session_state.mentor_feedback)
