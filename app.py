@@ -107,11 +107,12 @@ client = OpenAI(api_key=api_key)
 if len(st.session_state.chat_history) == 1:
     st.info("Der Raum ist bereit. Bitte eröffnen Sie das Gespräch über das Eingabefeld unten.")
 
-last_message_content = None
 if len(st.session_state.chat_history) > 1:
     last_msg = st.session_state.chat_history[-1]
     if last_msg["role"] == "assistant":
-        last_message_content = last_msg["content"]
+
+        if auto_speak:
+            speak_browser(last_msg["content"])
 
 for i, message in enumerate(st.session_state.chat_history):
     if message["role"] != "system":
@@ -134,10 +135,7 @@ if not st.session_state.get("finished", False):
             )
             ai_answer = response.choices[0].message.content
             st.session_state.chat_history.append({"role": "assistant", "content": ai_answer})
-
-            if auto_speak:
-                speak_browser(ai_answer)
-
+            
         except Exception as e:
             st.error(f"Fehler bei der Anfrage: {e}")
         st.rerun()
