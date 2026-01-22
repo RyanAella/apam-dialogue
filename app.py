@@ -86,7 +86,7 @@ if len(st.session_state.chat_history) == 1:
 
 for message in st.session_state.chat_history:
     if message["role"] != "system":
-        label = "Du" if message["role"] == "user" else "Gesprächspartner*in"
+        label = "Du" if message["role"] == "user" else ai_display_name
         with st.chat_message(message["role"]):
             st.write(f"**{label}:** {message['content']}")
 
