@@ -33,11 +33,13 @@ def speak_browser(text):
     clean_text = text.replace("'", "\\'").replace("\n", " ")
     js_code = f"""
     <script>
-    window.speechSynthesis.cancel(); // Stoppt laufende Sprachausgabe
-    var msg = new SpeechSynthesisUtterance('{clean_text}');
-    msg.lang = 'de-DE';
-    msg.rate = {speech_speed}; 
-    window.speechSynthesis.speak(msg);
+    setTimeout(function() {{
+        window.speechSynthesis.cancel();
+        var msg = new SpeechSynthesisUtterance('{clean_text}');
+        msg.lang = 'de-DE';
+        msg.rate = {speech_speed};
+        window.speechSynthesis.speak(msg);
+    }}, 100); // 100ms Verzögerung hilft bei Reruns
     </script>
     """
     components.html(js_code, height=0)
@@ -105,12 +107,18 @@ client = OpenAI(api_key=api_key)
 if len(st.session_state.chat_history) == 1:
     st.info("Der Raum ist bereit. Bitte eröffnen Sie das Gespräch über das Eingabefeld unten.")
 
+last_message_content = None
+if len(st.session_state.chat_history) > 1:
+    last_msg = st.session_state.chat_history[-1]
+    if last_msg["role"] == "assistant":
+        last_message_content = last_msg["content"]
+
 for i, message in enumerate(st.session_state.chat_history):
     if message["role"] != "system":
         label = "Du" if message["role"] == "user" else ai_display_name
         with st.chat_message(message["role"]):
             st.write(f"**{label}:** {message['content']}")
-            # Manueller Button unter jeder KI-Nachricht
+
             if message["role"] == "assistant":
                 if st.button(f"Vorlesen", key=f"btn_{i}"):
                     speak_browser(message['content'])
@@ -129,7 +137,7 @@ if not st.session_state.get("finished", False):
 
             if auto_speak:
                 speak_browser(ai_answer)
-                
+
         except Exception as e:
             st.error(f"Fehler bei der Anfrage: {e}")
         st.rerun()
