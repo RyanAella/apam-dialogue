@@ -69,9 +69,8 @@ st.markdown(user_instruction)
 # --- 3. INITIALIZATION ---
 if "current_scenario" not in st.session_state or st.session_state.current_scenario != selected_scenario_name:
     warte_anweisung = "\n\nWARTE AUF START: Der User wird das Gespräch eröffnen. Reagiere dann direkt in deiner Rolle."
-    namens_anweisung = "\nNAMENSWAHL: Wähle einen Namen für dich (z.B. Marc, Sarah), aber nenne ihn erst, wenn es passt."
     
-    st.session_state.chat_history = [{"role": "system", "content": full_ki_logic + warte_anweisung + namens_anweisung}]
+    st.session_state.chat_history = [{"role": "system", "content": full_ki_logic + warte_anweisung}]
     st.session_state.finished = False
     st.session_state.current_scenario = selected_scenario_name
     st.rerun()
@@ -121,12 +120,20 @@ if not is_finished:
             st.rerun()
 else:
     st.header("Mentor Feedback")
+    
+    # 1. Das Gesprächsprotokoll für den Download vorbereiten
+    chat_transcript_text = "GESPRÄCHSPROTOKOLL\n" + "="*20 + "\n"
+    for m in st.session_state.chat_history:
+        if m["role"] != "system":
+            label = "Du" if m["role"] == "user" else ai_display_name
+            chat_transcript_text += f"{label}: {m['content']}\n\n"
+
     if "mentor_feedback" not in st.session_state:
         with st.spinner("Analysiere das Gespräch..."):
-            chat_transcript = [m for m in st.session_state.chat_history if m["role"] != "system"]
+            chat_transcript_list = [m for m in st.session_state.chat_history if m["role"] != "system"]
             mentor_request = [
                 {"role": "system", "content": mentor_instructions},
-                {"role": "system", "content": f"Gesprächsprotokoll: {str(chat_transcript)}"}
+                {"role": "system", "content": f"Gesprächsprotokoll: {str(chat_transcript_list)}"}
             ]
             try:
                 resp = client.chat.completions.create(model=model, messages=mentor_request)
@@ -136,16 +143,20 @@ else:
     
     if "mentor_feedback" in st.session_state:
         st.markdown(st.session_state.mentor_feedback)
-        if st.button("Neues Gespräch beginnen"):
-            for key in ["chat_history", "finished", "mentor_feedback", "current_scenario"]:
-                st.session_state.pop(key, None)
-            st.rerun()
-    
-    if "mentor_feedback" in st.session_state:
-        st.markdown(st.session_state.mentor_feedback)
-        st.download_button(
-            label="Feedback als .txt herunterladen",
-            data=st.session_state.mentor_feedback,
-            file_name=f"Feedback_{selected_scenario_name}.txt",
-            mime="text/plain"
-        )
+        
+        full_export = chat_transcript_text + "\n" + "="*20 + "\nMENTOR FEEDBACK\n" + "="*20 + "\n" + st.session_state.mentor_feedback
+        
+        col_down1, col_down2 = st.columns(2)
+        with col_down1:
+            st.download_button(
+                label="Protokoll & Feedback herunterladen",
+                data=full_export,
+                file_name=f"Dialog_Lab_{selected_scenario_name}.txt",
+                mime="text/plain",
+                use_container_width=True
+            )
+        with col_down2:
+            if st.button("Neues Gespräch beginnen", use_container_width=True):
+                for key in ["chat_history", "finished", "mentor_feedback", "current_scenario"]:
+                    st.session_state.pop(key, None)
+                st.rerun()
