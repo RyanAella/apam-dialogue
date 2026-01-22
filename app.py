@@ -1,4 +1,5 @@
 import streamlit as st
+import streamlit.components.v1 as components
 from openai import OpenAI
 import os
 import re
@@ -12,13 +13,34 @@ model = "gpt-4o"
 st.set_page_config(page_title="SI Dialogue Lab", layout="centered")
 st.title("SI Dialogue Lab")
 
-# --- 1. HELP FUNCTION FOR AUTOMATIC RECOGNITION ---
+# --- 1. CENTRAL CONTROL IN THE SIDEBAR ---
+with st.sidebar:
+    st.header("Audio Einstellungen")
+    # Dieser Schalter steuert, ob die KI sofort losredet
+    auto_speak = st.toggle("Antworten automatisch vorlesen", value=False)
+    # Optional: Ein Regler für die Geschwindigkeit
+    speech_speed = st.slider("Geschwindigkeit", 0.5, 2.0, 1.0, 0.1)
+
+# --- 1a HELP FUNCTION FOR AUTOMATIC RECOGNITION ---
 def extract_role_label(text):
-    """Extrahiert die Rolle (z.B. Mitarbeiterin) aus dem partner_de Block."""
     match = re.search(r"DU BIST (?:DIE|DER)\s+([A-ZÄÖÜa-zäöü]+)", text)
     if match:
         return match.group(1).strip()
     return "Gesprächspartner*in"
+
+# --- 1b SPEECH SYNTHESIS FUNCTION ---
+def speak_browser(text):
+    clean_text = text.replace("'", "\\'").replace("\n", " ")
+    js_code = f"""
+    <script>
+    window.speechSynthesis.cancel(); // Stoppt laufende Sprachausgabe
+    var msg = new SpeechSynthesisUtterance('{clean_text}');
+    msg.lang = 'de-DE';
+    msg.rate = {speech_speed}; 
+    window.speechSynthesis.speak(msg);
+    </script>
+    """
+    components.html(js_code, height=0)
 
 # 2. SETUP & DATA LOADING
 SCENARIOS = {
@@ -68,9 +90,9 @@ st.markdown(user_instruction)
 
 # --- 3. INITIALIZATION ---
 if "current_scenario" not in st.session_state or st.session_state.current_scenario != selected_scenario_name:
-    warte_anweisung = "\n\nWARTE AUF START: Der User wird das Gespräch eröffnen. Reagiere dann direkt in deiner Rolle."
+    wait_instruction = "\n\nWARTE AUF START: Der User wird das Gespräch eröffnen. Reagiere dann direkt in deiner Rolle."
     
-    st.session_state.chat_history = [{"role": "system", "content": full_ki_logic + warte_anweisung}]
+    st.session_state.chat_history = [{"role": "system", "content": full_ki_logic + wait_instruction}]
     st.session_state.finished = False
     st.session_state.current_scenario = selected_scenario_name
     st.rerun()
@@ -83,11 +105,15 @@ client = OpenAI(api_key=api_key)
 if len(st.session_state.chat_history) == 1:
     st.info("Der Raum ist bereit. Bitte eröffnen Sie das Gespräch über das Eingabefeld unten.")
 
-for message in st.session_state.chat_history:
+for i, message in enumerate(st.session_state.chat_history):
     if message["role"] != "system":
         label = "Du" if message["role"] == "user" else ai_display_name
         with st.chat_message(message["role"]):
             st.write(f"**{label}:** {message['content']}")
+            # Manueller Button unter jeder KI-Nachricht
+            if message["role"] == "assistant":
+                if st.button(f"Vorlesen", key=f"btn_{i}"):
+                    speak_browser(message['content'])
 
 # --- 5. CHAT INPUT ---
 if not st.session_state.get("finished", False):
@@ -100,6 +126,10 @@ if not st.session_state.get("finished", False):
             )
             ai_answer = response.choices[0].message.content
             st.session_state.chat_history.append({"role": "assistant", "content": ai_answer})
+
+            if auto_speak:
+                speak_browser(ai_answer)
+                
         except Exception as e:
             st.error(f"Fehler bei der Anfrage: {e}")
         st.rerun()
