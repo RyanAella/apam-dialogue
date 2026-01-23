@@ -5,38 +5,49 @@ import os
 import re
 from dotenv import load_dotenv
 
-# Load environment variables
+# --- INITIAL SETUP ---
 load_dotenv()
-
 model = "gpt-4o"
 
 st.set_page_config(page_title="SI Dialogue Lab", layout="centered")
 st.title("SI Dialogue Lab")
 
-# --- 1. CENTRAL CONTROL IN THE SIDEBAR ---
+# Initialize session state for tracking audio playback of the briefing
+if "briefing_active" not in st.session_state:
+    st.session_state.briefing_active = False
+
+# --- 1. SIDEBAR: CENTRAL AUDIO CONTROLS ---
 with st.sidebar:
     st.header("Audio Einstellungen")
 
     st.subheader("Ausgabe (Hören)")
     auto_speak = st.toggle("Antworten automatisch vorlesen", value=False)
 
+    # Emergency stop button for all active browser speech synthesis
+    if st.button("Alle Sprachausgaben stoppen", use_container_width=True):
+        js_code = "<script>window.speechSynthesis.cancel();</script>"
+        components.html(js_code, height=0)
+        st.session_state.briefing_active = False
+        st.rerun()
+
     st.divider()
     
     st.subheader("Eingabe (Sprechen)")
     st.write("Klicken Sie den Button, um die Spracherkennung zu starten.")
     if st.button("Jetzt Sprechen", use_container_width=True):
-        stt_browser()
-        st.info("Mikrofon aktiv... Bitte sprechen Sie jetzt.")
+        # Trigger flag to inject STT JavaScript after the next rerun
+        st.session_state.start_stt = True
 
-# --- 1a HELP FUNCTION FOR AUTOMATIC RECOGNITION ---
+# --- 1a UTILITY FUNCTIONS ---
 def extract_role_label(text):
-    match = re.search(r"DU BIST (?:DIE|DER)\s+([A-ZÄÖÜa-zäöü]+)", text)
+    """Extracts the character name from the scenario prompt for GUI labeling."""match = re.search(r"DU BIST (?:DIE|DER)\s+([A-ZÄÖÜa-zäöü]+)", text)
     if match:
         return match.group(1).strip()
     return "Gesprächspartner*in"
 
-# --- 1b SPEECH SYNTHESIS FUNCTION ---
+# --- 1b BROWSER AUDIO ENGINE (JAVASCRIPT INJECTION) ---
 def tts_browser(text):
+    """Uses Web Speech API to read text. Cleans strings for JS compatibility."""
     clean_text = text.replace("'", "\\'").replace("\n", " ")
     js_code = f"""
     <script>
@@ -45,19 +56,30 @@ def tts_browser(text):
         var msg = new SpeechSynthesisUtterance('{clean_text}');
         msg.lang = 'de-DE';
         window.speechSynthesis.speak(msg);
-    }}, 100); // 100ms Verzögerung hilft bei Reruns
+    }}, 100);
+    </script>
+    """
+    components.html(js_code, height=0)
+
+def stop_browser_speech():
+    """Immediately halts the browser's speech synthesis engine."""
+    js_code = """
+    <script>
+    window.speechSynthesis.cancel();
     </script>
     """
     components.html(js_code, height=0)
 
 def stt_browser():
+    """
+    Triggers the browser's SpeechRecognition API.
+    Captures audio, sends it to the hidden Streamlit widget, and auto-submits the form.
+    """
     js_code = """
     <script>
     var recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
     recognition.lang = 'de-DE';
     recognition.interimResults = false;
-    recognition.maxAlternatives = 1;
-
     recognition.start();
 
     recognition.onresult = function(event) {
@@ -85,7 +107,12 @@ def stt_browser():
     """
     components.html(js_code, height=0)
 
-# 2. SETUP & DATA LOADING
+# --- STT TRIGGER ---
+if st.session_state.get("start_stt", False):
+    stt_browser()
+    st.session_state.start_stt = False
+
+# --- 2. DATA LOADING & SCENARIO HANDLING ---
 SCENARIOS = {
     "Verspätungen beim Reporting": {
         "scenario": "scenario_reporting.txt",
@@ -100,14 +127,15 @@ SCENARIOS = {
 selected_scenario_name = st.selectbox("Wählen Sie ein Szenario:", list(SCENARIOS.keys()))
 selected_files = SCENARIOS[selected_scenario_name]
 
+# Pathing for scenario and analysis prompt files
 scenario_path = os.path.join("prompts", "scenarios", selected_files["scenario"])
 analysis_path = os.path.join("prompts", "analysis", selected_files["analysis"])
 
-# Load Scenario and parse metadata
 if os.path.exists(scenario_path):
     with open(scenario_path, "r", encoding="utf-8") as f:
         raw_content = f.read()
 
+    # Parse character name and split system prompt from GUI instructions
     if "partner_de =" in raw_content:
         role_part = raw_content.split("partner_de =")[1]
         ai_display_name = extract_role_label(role_part)
@@ -128,52 +156,67 @@ else:
     st.error(f"Analyse-Datei nicht gefunden.")
     st.stop()
 
+# --- BRIEFING UI SECTION ---
 st.subheader("Briefing für das Gespräch")
 
 with st.status("📋 Ihre Aufgabenstellung & Szenario-Details", expanded=True, state="complete"):
     st.markdown(user_instruction)
-    if st.button("Briefing vorlesen", key="read_briefing"):
-        tts_browser(user_instruction)
+    
+    # Toggle button for reading the briefing out loud
+    if not st.session_state.briefing_active:
+        if st.button("🔊 Briefing vorlesen", key="read_briefing"):
+            st.session_state.briefing_active = True
+            tts_browser(user_instruction)
+            st.rerun()
+    else:
+        if st.button("🛑 Vorlesen abbrechen", key="stop_briefing"):
+            stop_browser_speech()
+            st.session_state.briefing_active = False
+            st.rerun()
 
-# --- 3. INITIALIZATION ---
+# --- 3. SESSION STATE INITIALIZATION ---
 if "current_scenario" not in st.session_state or st.session_state.current_scenario != selected_scenario_name:
+    # Setup initial chat history with system instructions
     wait_instruction = "\n\nWARTE AUF START: Der User wird das Gespräch eröffnen. Reagiere dann direkt in deiner Rolle."
     
     st.session_state.chat_history = [{"role": "system", "content": full_ki_logic + wait_instruction}]
     st.session_state.finished = False
     st.session_state.current_scenario = selected_scenario_name
+    st.session_state.briefing_active = False
     st.rerun()
 
-# Setup OpenAI Client
+# OpenAI Client Setup
 api_key = os.getenv("OPENAI_API_KEY")
 client = OpenAI(api_key=api_key)
 
-# --- 4. START NOTE & CHAT DISPLAY ---
+# --- 4. CHAT DISPLAY & AUTO-VOICE ---
 if len(st.session_state.chat_history) == 1:
     st.info("Der Raum ist bereit. Bitte eröffnen Sie das Gespräch über das Eingabefeld unten.")
 
+# Automatic Text-to-Speech for the latest AI message
 if len(st.session_state.chat_history) > 1:
-    last_msg = st.session_state.chat_history[-1]
-    
+    last_msg = st.session_state.chat_history[-1]    
     if auto_speak and last_msg["role"] == "assistant":
         if st.session_state.get("last_spoken") != last_msg["content"]:
             tts_browser(last_msg["content"])
             st.session_state.last_spoken = last_msg["content"]
 
+# Render chat messages
 for i, message in enumerate(st.session_state.chat_history):
     if message["role"] != "system":
         label = "Du" if message["role"] == "user" else ai_display_name
         with st.chat_message(message["role"]):
             st.write(f"**{label}:** {message['content']}")
-
+            # Manual replay button for each AI message
             if message["role"] == "assistant":
                 if st.button(f"Vorlesen", key=f"btn_{i}"):
                     tts_browser(message['content'])
 
-# --- 5. CHAT INPUT ---
+# --- 5. CHAT INPUT LOGIC ---
 if not st.session_state.get("finished", False):
     if user_input := st.chat_input("Schreiben Sie Ihre Antwort..."):
         st.session_state.chat_history.append({"role": "user", "content": user_input})
+        st.session_state.briefing_active = False
         try:
             response = client.chat.completions.create(
                 model=model,
@@ -186,7 +229,7 @@ if not st.session_state.get("finished", False):
             st.error(f"Fehler bei der Anfrage: {e}")
         st.rerun()
 
-# --- 6. BUTTONS & ANALYSIS ---
+# --- 6. END SESSION & ANALYSIS ---
 st.divider()
 is_finished = st.session_state.get("finished", False)
 
@@ -201,15 +244,17 @@ if not is_finished:
             st.session_state.finished = True
             st.rerun()
 else:
+    # --- MENTOR FEEDBACK SECTION ---
     st.header("Mentor Feedback")
     
-    # 1. Das Gesprächsprotokoll für den Download vorbereiten
+    # Generate plaintext transcript for export
     chat_transcript_text = "GESPRÄCHSPROTOKOLL\n" + "="*20 + "\n"
     for m in st.session_state.chat_history:
         if m["role"] != "system":
             label = "Du" if m["role"] == "user" else ai_display_name
             chat_transcript_text += f"{label}: {m['content']}\n\n"
 
+    # Fetch AI analysis if not already stored
     if "mentor_feedback" not in st.session_state:
         with st.spinner("Analysiere das Gespräch..."):
             chat_transcript_list = [m for m in st.session_state.chat_history if m["role"] != "system"]
@@ -226,6 +271,7 @@ else:
     if "mentor_feedback" in st.session_state:
         st.markdown(st.session_state.mentor_feedback)
         
+        # Prepare full export package
         full_export = chat_transcript_text + "\n" + "="*20 + "\nMENTOR FEEDBACK\n" + "="*20 + "\n" + st.session_state.mentor_feedback
         
         col_down1, col_down2 = st.columns(2)
