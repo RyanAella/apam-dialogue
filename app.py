@@ -16,10 +16,17 @@ st.title("SI Dialogue Lab")
 # --- 1. CENTRAL CONTROL IN THE SIDEBAR ---
 with st.sidebar:
     st.header("Audio Einstellungen")
-    # Dieser Schalter steuert, ob die KI sofort losredet
+
+    st.subheader("Ausgabe (Hören)")
     auto_speak = st.toggle("Antworten automatisch vorlesen", value=False)
-    # Optional: Ein Regler für die Geschwindigkeit
-    speech_speed = st.slider("Geschwindigkeit", 0.5, 2.0, 1.0, 0.1)
+
+    st.divider()
+    
+    st.subheader("Eingabe (Sprechen)")
+    st.write("Klicken Sie den Button, um die Spracherkennung zu starten.")
+    if st.button("Jetzt Sprechen", use_container_width=True):
+        stt_browser()
+        st.info("Mikrofon aktiv... Bitte sprechen Sie jetzt.")
 
 # --- 1a HELP FUNCTION FOR AUTOMATIC RECOGNITION ---
 def extract_role_label(text):
@@ -29,7 +36,7 @@ def extract_role_label(text):
     return "Gesprächspartner*in"
 
 # --- 1b SPEECH SYNTHESIS FUNCTION ---
-def speak_browser(text):
+def tts_browser(text):
     clean_text = text.replace("'", "\\'").replace("\n", " ")
     js_code = f"""
     <script>
@@ -37,9 +44,43 @@ def speak_browser(text):
         window.speechSynthesis.cancel();
         var msg = new SpeechSynthesisUtterance('{clean_text}');
         msg.lang = 'de-DE';
-        msg.rate = {speech_speed};
         window.speechSynthesis.speak(msg);
     }}, 100); // 100ms Verzögerung hilft bei Reruns
+    </script>
+    """
+    components.html(js_code, height=0)
+
+def stt_browser():
+    js_code = """
+    <script>
+    var recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+    recognition.lang = 'de-DE';
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+
+    recognition.start();
+
+    recognition.onresult = function(event) {
+        var transcript = event.results[0][0].transcript;
+
+        window.parent.postMessage({
+            type: 'streamlit:set_widget_value',
+            data: { value: transcript, widgetId: 'chat_input' }
+        }, '*');
+
+        setTimeout(function() {
+            const textArea = window.parent.document.querySelector('textarea[data-testid="stChatInputTextArea"]');
+            if (textArea) {
+                textArea.value = transcript;
+                textArea.dispatchEvent(new Event('input', { bubbles: true }));
+                
+                const enterEvent = new KeyboardEvent('keydown', {
+                    bubbles: true, cancelable: true, key: 'Enter', code: 'Enter', keyCode: 13
+                });
+                textArea.dispatchEvent(enterEvent);
+            }
+        }, 300);
+    };
     </script>
     """
     components.html(js_code, height=0)
@@ -88,7 +129,11 @@ else:
     st.stop()
 
 st.subheader("Briefing für das Gespräch")
-st.markdown(user_instruction)
+
+with st.status("📋 Ihre Aufgabenstellung & Szenario-Details", expanded=True, state="complete"):
+    st.markdown(user_instruction)
+    if st.button("Briefing vorlesen", key="read_briefing"):
+        tts_browser(user_instruction)
 
 # --- 3. INITIALIZATION ---
 if "current_scenario" not in st.session_state or st.session_state.current_scenario != selected_scenario_name:
@@ -109,10 +154,11 @@ if len(st.session_state.chat_history) == 1:
 
 if len(st.session_state.chat_history) > 1:
     last_msg = st.session_state.chat_history[-1]
-    if last_msg["role"] == "assistant":
-
-        if auto_speak:
-            speak_browser(last_msg["content"])
+    
+    if auto_speak and last_msg["role"] == "assistant":
+        if st.session_state.get("last_spoken") != last_msg["content"]:
+            tts_browser(last_msg["content"])
+            st.session_state.last_spoken = last_msg["content"]
 
 for i, message in enumerate(st.session_state.chat_history):
     if message["role"] != "system":
@@ -122,7 +168,7 @@ for i, message in enumerate(st.session_state.chat_history):
 
             if message["role"] == "assistant":
                 if st.button(f"Vorlesen", key=f"btn_{i}"):
-                    speak_browser(message['content'])
+                    tts_browser(message['content'])
 
 # --- 5. CHAT INPUT ---
 if not st.session_state.get("finished", False):
