@@ -55,15 +55,19 @@ def tts_browser(text):
     js_code = f"""
     <script>
     (function() {{
-        window.speechSynthesis.cancel(); // Clear previous queue
+        window.speechSynthesis.cancel(); 
         var msg = new SpeechSynthesisUtterance('{clean_text}');
         msg.lang = 'de-DE';
         window.speechSynthesis.speak(msg);
     }})();
     </script>
     """
-    # Using a unique key helps Streamlit keep the component alive
-    components.html(js_code, height=0, key=f"tts_{hash(text)}")
+    try:
+        # We use a fixed string combined with a hash to avoid the metric error
+        # but still allow updates when the text changes.
+        components.html(js_code, height=0, key=f"tts_component_{hash(text[:20])}")
+    except Exception:
+        pass
 
 def stop_browser_speech():
     """Immediately halts the browser's speech synthesis engine."""
@@ -171,7 +175,7 @@ with st.status("📋 Ihre Aufgabenstellung & Szenario-Details", expanded=True, s
         if not st.session_state.briefing_active:
             if st.button("🔊 Briefing vorlesen", key="read_briefing"):
                 st.session_state.briefing_active = True
-                # No immediate rerun here - let the script continue to the trigger below
+                # REMOVED st.rerun() - Streamlit handles the state change automatically
         else:
             if st.button("🛑 Vorlesen abbrechen", key="stop_briefing"):
                 stop_browser_speech()
@@ -180,9 +184,8 @@ with st.status("📋 Ihre Aufgabenstellung & Szenario-Details", expanded=True, s
 
 # --- AUDIO TRIGGER (Outside the status box for stability) ---
 if st.session_state.briefing_active:
+    # This renders the invisible HTML component at the end of the script flow
     tts_browser(user_instruction)
-    # Important: We don't set briefing_active to False here, 
-    # so the "Stop" button stays visible.
 
 # --- 3. SESSION STATE INITIALIZATION ---
 if "current_scenario" not in st.session_state or st.session_state.current_scenario != selected_scenario_name:
