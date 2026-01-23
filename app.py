@@ -49,18 +49,21 @@ def extract_role_label(text):
 # --- 1b BROWSER AUDIO ENGINE (JAVASCRIPT INJECTION) ---
 def tts_browser(text):
     """Uses Web Speech API to read text. Cleans strings for JS compatibility."""
+    if not text:
+        return
     clean_text = text.replace("'", "\\'").replace("\n", " ")
     js_code = f"""
     <script>
-    setTimeout(function() {{
-        window.speechSynthesis.cancel();
+    (function() {{
+        window.speechSynthesis.cancel(); // Clear previous queue
         var msg = new SpeechSynthesisUtterance('{clean_text}');
         msg.lang = 'de-DE';
         window.speechSynthesis.speak(msg);
-    }}, 100);
+    }})();
     </script>
     """
-    components.html(js_code, height=0)
+    # Using a unique key helps Streamlit keep the component alive
+    components.html(js_code, height=0, key=f"tts_{hash(text)}")
 
 def stop_browser_speech():
     """Immediately halts the browser's speech synthesis engine."""
@@ -163,17 +166,23 @@ st.subheader("Briefing für das Gespräch")
 with st.status("📋 Ihre Aufgabenstellung & Szenario-Details", expanded=True, state="complete"):
     st.markdown(user_instruction)
     
-    # Toggle button for reading the briefing out loud
-    if not st.session_state.briefing_active:
-        if st.button("🔊 Briefing vorlesen", key="read_briefing"):
-            st.session_state.briefing_active = True
-            tts_browser(user_instruction)
-            st.rerun()
-    else:
-        if st.button("🛑 Vorlesen abbrechen", key="stop_briefing"):
-            stop_browser_speech()
-            st.session_state.briefing_active = False
-            st.rerun()
+    col_audio, _ = st.columns([1, 2])
+    with col_audio:
+        if not st.session_state.briefing_active:
+            if st.button("🔊 Briefing vorlesen", key="read_briefing"):
+                st.session_state.briefing_active = True
+                # No immediate rerun here - let the script continue to the trigger below
+        else:
+            if st.button("🛑 Vorlesen abbrechen", key="stop_briefing"):
+                stop_browser_speech()
+                st.session_state.briefing_active = False
+                st.rerun()
+
+# --- AUDIO TRIGGER (Outside the status box for stability) ---
+if st.session_state.briefing_active:
+    tts_browser(user_instruction)
+    # Important: We don't set briefing_active to False here, 
+    # so the "Stop" button stays visible.
 
 # --- 3. SESSION STATE INITIALIZATION ---
 if "current_scenario" not in st.session_state or st.session_state.current_scenario != selected_scenario_name:
