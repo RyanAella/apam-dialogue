@@ -40,7 +40,8 @@ with st.sidebar:
 
 # --- 1a UTILITY FUNCTIONS ---
 def extract_role_label(text):
-    """Extracts the character name from the scenario prompt for GUI labeling."""match = re.search(r"DU BIST (?:DIE|DER)\s+([A-ZÄÖÜa-zäöü]+)", text)
+    """Extracts the character name from the scenario prompt for GUI labeling."""
+    match = re.search(r"DU BIST (?:DIE|DER)\s+([A-ZÄÖÜa-zäöü]+)", text)
     if match:
         return match.group(1).strip()
     return "Gesprächspartner*in"
