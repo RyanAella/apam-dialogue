@@ -170,8 +170,12 @@ if auto_speak and len(st.session_state.chat_history) > 1:
 # --- CHAT INPUT ---
 user_input = st.chat_input("Schreiben Sie Ihre Antwort...")
 
-# --- 🎤 MICROPHONE (STABILER) ---
+# --- 🎤 KOSTENLOSE SPRACHEINGABE (BESSERER FIREFOX-SUPPORT) ---
 st.markdown("### 🎤 Spracheingabe")
+
+# Sicherstellen, dass der Receiver existiert
+if "speech_output" not in st.session_state:
+    st.session_state.speech_output = ""
 
 components.html(
     """
@@ -182,7 +186,7 @@ components.html(
       ">
         🎤 Jetzt sprechen
       </button>
-      <span id="status" style="font-family:sans-serif; font-size:13px; color:#555;"></span>
+      <span id="status" style="font-family:sans-serif; font-size:13px; color:#555;">Bereit.</span>
     </div>
 
     <script>
@@ -190,20 +194,28 @@ components.html(
     const status = document.getElementById("status");
 
     btn.onclick = () => {
-        const recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-        if (!recognition) {
-            status.innerText = "API nicht verfügbar.";
+        // Firefox/Safari/Chrome Support-Check
+        const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        
+        if (!Recognition) {
+            status.innerText = "❌ Browser unterstützt das nicht.";
+            alert("Dieser Browser unterstützt keine kostenlose Spracherkennung. Bitte nutzen Sie Chrome oder Edge.");
             return;
         }
 
-        const rec = new recognition();
+        const rec = new Recognition();
         rec.lang = 'de-DE';
-        
-        rec.onstart = () => { status.innerText = "🔴 Ich höre zu..."; };
-        
+        rec.continuous = false;
+        rec.interimResults = false;
+
+        rec.onstart = () => { 
+            status.innerText = "🔴 Ich höre zu..."; 
+            btn.style.backgroundColor = "#ffcccc";
+        };
+
         rec.onresult = e => {
             const text = e.results[0][0].transcript;
-            // WICHTIG: Die widgetId muss zum st.text_input passen
+            // Sendet den Text an das versteckte Feld
             window.parent.postMessage({
                 type: 'streamlit:set_widget_value',
                 data: { value: text, widgetId: 'speech_input_receiver' }
@@ -211,7 +223,19 @@ components.html(
             status.innerText = "✅ Erkannt: " + text;
         };
 
-        rec.onerror = e => { status.innerText = "❌ Fehler: " + e.error; };
+        rec.onerror = e => {
+            console.error(e);
+            if(e.error === 'network') {
+                status.innerText = "❌ Netzwerk-Fehler (In Firefox oft nicht verfügbar)";
+            } else {
+                status.innerText = "❌ Fehler: " + e.error;
+            }
+        };
+
+        rec.onend = () => {
+            btn.style.backgroundColor = "#f0f2f6";
+        };
+
         rec.start();
     };
     </script>
@@ -219,22 +243,19 @@ components.html(
     height=80
 )
 
-if speech_capture and not st.session_state.finished:
-    # Wir nehmen den Text aus dem Receiver
-    user_input = speech_capture
-    # WICHTIG: Wir hängen es an die History an
-    st.session_state.chat_history.append({"role": "user", "content": user_input})
+# Empfänger-Feld (muss denselben Key wie oben in widgetId haben)
+speech_capture = st.text_input("Receiver", key="speech_input_receiver", label_visibility="collapsed")
+
+# Logik: Wenn Text ankommt, verarbeiten
+if speech_capture and not st.session_state.get("finished", False):
+    st.session_state.chat_history.append({"role": "user", "content": speech_capture})
+    st.session_state.speech_input_receiver = "" # Reset
     
-    # Damit das Feld für das nächste Mal leer ist, müssen wir es via Session State resetten
-    st.session_state.speech_input_receiver = "" 
-    
-    # KI Antwort holen
-    with st.spinner("KI antwortet..."):
+    with st.spinner("KI überlegt..."):
         client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
         response = client.chat.completions.create(model=model, messages=st.session_state.chat_history)
         ai_text = response.choices[0].message.content
         st.session_state.chat_history.append({"role": "assistant", "content": ai_text})
-    
     st.rerun()
 
 # --- OPENAI CALL ---
