@@ -4,16 +4,13 @@ import re
 
 def format_for_tts(text: str) -> str:
     # Listen / Aufzählungen
-    text = re.sub(r"
-\s*[-•]\s*", ". ", text)
+    text = re.sub(r"\n\s*[-•]\s*", ". ", text)
 
     # Absatzumbrüche → deutliche Pause
-    text = re.sub(r"
-{2,}", ". ", text)
+    text = re.sub(r"\n{2,}", ". ", text)
 
     # Einzelne Zeilenumbrüche → kurze Pause
-    text = text.replace("
-", " ")
+    text = text.replace("\n", " ")
 
     # Whitespace normalisieren
     text = re.sub(r"\s+", " ", text)
