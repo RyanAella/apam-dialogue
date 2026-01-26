@@ -12,7 +12,15 @@ model = "gpt-4o"
 st.set_page_config(page_title="SI Dialogue Lab", layout="centered")
 st.title("SI Dialogue Lab")
 
-
+# --- SESSION STATE INITIALIZATION ---
+if "chat_history" not in st.session_state:
+    st.session_state.chat_history = []
+if "start_stt" not in st.session_state:
+    st.session_state.start_stt = False
+if "finished" not in st.session_state:
+    st.session_state.finished = False
+if "last_spoken" not in st.session_state:
+    st.session_state.last_spoken = None
 
 # --- 1. SIDEBAR: CENTRAL AUDIO CONTROLS ---
 with st.sidebar:
@@ -179,6 +187,7 @@ if "current_scenario" not in st.session_state or st.session_state.current_scenar
     
     st.session_state.chat_history = [{"role": "system", "content": full_ki_logic + wait_instruction}]
     st.session_state.finished = False
+    st.session_state.last_spoken = None # Reset Audio-History
     st.session_state.current_scenario = selected_scenario_name
     st.rerun()
 
@@ -188,15 +197,7 @@ client = OpenAI(api_key=api_key)
 
 # --- 4. CHAT DISPLAY & AUTO-VOICE ---
 if len(st.session_state.chat_history) == 1:
-    st.info("Der Raum ist bereit. Bitte eröffnen Sie das Gespräch über das Eingabefeld unten.")
-
-# Automatic Text-to-Speech for the latest AI message
-if len(st.session_state.chat_history) > 1:
-    last_msg = st.session_state.chat_history[-1]    
-    if auto_speak and last_msg["role"] == "assistant":
-        if st.session_state.get("last_spoken") != last_msg["content"]:
-            tts_browser(last_msg["content"])
-            st.session_state.last_spoken = last_msg["content"]
+    st.info(f"**Bereit für das Gespräch.** Eröffnen Sie den Dialog, indem Sie unten eine Nachricht eingeben oder das Mikrofon nutzen.")
 
 # Render chat messages
 for i, message in enumerate(st.session_state.chat_history):
@@ -208,6 +209,13 @@ for i, message in enumerate(st.session_state.chat_history):
             if message["role"] == "assistant":
                 if st.button(f"Vorlesen", key=f"btn_{i}"):
                     tts_browser(message['content'])
+
+# Automatic Text-to-Speech for the latest AI message
+if auto_speak and len(st.session_state.chat_history) > 1:
+    last_msg = st.session_state.chat_history[-1]
+    if last_msg["role"] == "assistant" and st.session_state.last_spoken != last_msg["content"]:
+        tts_browser(last_msg["content"])
+        st.session_state.last_spoken = last_msg["content"]
 
 # --- 5. CHAT INPUT LOGIC ---
 if not st.session_state.get("finished", False):
