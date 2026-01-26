@@ -246,21 +246,13 @@ components.html(
     height=80
 )
 
-# Empfänger-Feld (muss denselben Key wie oben in widgetId haben)
-speech_capture = st.text_input("Receiver", key="speech_input_receiver", label_visibility="collapsed")
-
 # Logik: Wenn Text ankommt, verarbeiten
-if speech_capture and not st.session_state.get("finished", False):
+if speech_capture and not st.session_state.finished:
     st.session_state.chat_history.append({"role": "user", "content": speech_capture})
-    st.session_state.speech_input_receiver = "" # Reset
-    
+    st.session_state.speech_input_receiver = "" # Leert das Feld sofort wieder
     with st.spinner("KI überlegt..."):
-        try:
-            response = client.chat.completions.create(model=model, messages=st.session_state.chat_history)
-            ai_text = response.choices[0].message.content
-            st.session_state.chat_history.append({"role": "assistant", "content": ai_text})
-        except Exception as e:
-            st.error(f"Fehler: {e}")
+        resp = client.chat.completions.create(model=model, messages=st.session_state.chat_history)
+        st.session_state.chat_history.append({"role": "assistant", "content": resp.choices[0].message.content})
     st.rerun()
 
 # --- OPENAI CALL ---
