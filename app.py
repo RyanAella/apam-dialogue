@@ -207,17 +207,21 @@ components.html(
         
         rec.onresult = e => {
             const text = e.results[0][0].transcript;
-            // 1. Set the value in the Streamlit widget
+            
+            // 1. Wert in das versteckte Feld schreiben
             window.parent.postMessage({
                 type: 'streamlit:set_widget_value',
                 data: {value: text, widgetId: 'speech_input_receiver'}
             }, '*');
             
-            // 2. Small delay then force a rerun signal
+            // 2. WICHTIG: Einen "Dummy-Rerun" auslösen, damit Python das on_change bemerkt
             setTimeout(() => {
-                window.parent.postMessage({type: 'streamlit:set_page_config', data: {}}, '*');
-            }, 300);
-            
+                window.parent.postMessage({
+                    type: 'streamlit:set_page_config', 
+                    data: {} // Das triggert einen Refresh ohne die Seite zu laden
+                }, '*');
+            }, 100);
+
             status.innerText = "✅ Erkannt: " + text;
         };
         
