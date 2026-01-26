@@ -167,7 +167,19 @@ user_text = st.chat_input("Schreiben Sie Ihre Antwort...")
 if user_text:
     process_ai_response(user_text)
 
-# --- VOICE RECORDING UI (JAVASCRIPT) ---
+# 1. PLATZIERE DIESEN BLOCK DIREKT NACH DEM SETUP (VOR DEM CHAT-DISPLAY)
+# This receiver must be at the top to catch the data before rendering
+voice_input = st.text_input("STT Receiver", key="speech_input_receiver", label_visibility="collapsed")
+
+# Trigger processing immediately if voice data is present
+if voice_input:
+    # Use a temporary variable and clear the state immediately to prevent loops
+    captured_text = voice_input
+    st.session_state["speech_input_receiver"] = "" 
+    # Directly call the AI function
+    process_ai_response(captured_text)
+
+# --- JAVASCRIPT BLOCK (Kopiere diesen Teil in dein components.html) ---
 st.markdown("### 🎤 Spracheingabe")
 components.html(
     """
@@ -182,26 +194,35 @@ components.html(
     const status = document.getElementById("status");
     btn.onclick = () => {
         const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-        if (!Recognition) { status.innerText = "Browser nicht unterstützt."; return; }
+        if (!Recognition) { status.innerText = "Nicht unterstützt."; return; }
         const rec = new Recognition();
         rec.lang = 'de-DE';
+        
         rec.onstart = () => { 
             status.innerText = "🔴 Ich höre zu..."; 
             btn.style.backgroundColor = "#ffcccc"; 
         };
+        
         rec.onresult = e => {
             const text = e.results[0][0].transcript;
-            // Send to Streamlit
+            
+            // Step 1: Push text to Streamlit
             window.parent.postMessage({
                 type: 'streamlit:set_widget_value',
                 data: {value: text, widgetId: 'speech_input_receiver'}
             }, '*');
-            // Force Streamlit to process the new value
+            
+            // Step 2: NEW! Force a "Rerun" signal so Python script executes immediately
             setTimeout(() => {
-                window.parent.postMessage({type: 'streamlit:set_page_config', data: {}}, '*');
-            }, 200);
+                window.parent.postMessage({
+                    type: 'streamlit:set_page_config',
+                    data: {title: "SI Dialogue Lab"} 
+                }, '*');
+            }, 300);
+            
             status.innerText = "✅ Erkannt: " + text;
         };
+        
         rec.onend = () => { btn.style.backgroundColor = "#f0f2f6"; };
         rec.start();
     };
