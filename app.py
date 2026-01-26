@@ -16,8 +16,6 @@ st.title("SI Dialogue Lab")
 # --- SESSION STATE INITIALIZATION ---
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = []
-if "start_stt" not in st.session_state:
-    st.session_state.start_stt = False
 if "finished" not in st.session_state:
     st.session_state.finished = False
 if "last_spoken" not in st.session_state:
@@ -137,11 +135,6 @@ def stt_browser():
     """
     components.html(js_code, height=0)
 
-# --- STT TRIGGER ---
-if st.session_state.get("start_stt", False):
-    stt_browser()
-    st.session_state.start_stt = False
-
 # --- 2. DATA LOADING & SCENARIO HANDLING ---
 SCENARIOS = {
     "Verspätungen beim Reporting": {
@@ -234,21 +227,27 @@ if auto_speak and len(st.session_state.chat_history) > 1:
         tts_browser(last_msg["content"])
         st.session_state.last_spoken = last_msg["content"]
 
-# --- 5. CHAT INPUT LOGIC ---
-if not st.session_state.get("finished", False):
-    if user_input := st.chat_input("Schreiben Sie Ihre Antwort..."):
-        st.session_state.chat_history.append({"role": "user", "content": user_input})
-        try:
-            response = client.chat.completions.create(
-                model=model,
-                messages=st.session_state.chat_history
-            )
-            ai_answer = response.choices[0].message.content
-            st.session_state.chat_history.append({"role": "assistant", "content": ai_answer})
-            
-        except Exception as e:
-            st.error(f"Fehler bei der Anfrage: {e}")
-        st.rerun()
+# --- CHAT INPUT + MIC ---
+col_input, col_mic = st.columns([6, 1])
+
+with col_input:
+    user_input = st.chat_input("Schreiben Sie Ihre Antwort...")
+
+with col_mic:
+    if st.button("🎤", use_container_width=True):
+        stt_browser()
+
+# --- OPENAI CALL ---
+if user_input and not st.session_state.finished:
+    st.session_state.chat_history.append({"role": "user", "content": user_input})
+    client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+    response = client.chat.completions.create(
+        model=model,
+        messages=st.session_state.chat_history
+    )
+    ai_text = response.choices[0].message.content
+    st.session_state.chat_history.append({"role": "assistant", "content": ai_text})
+    st.rerun()
 
 # --- 6. END SESSION & ANALYSIS ---
 st.divider()
