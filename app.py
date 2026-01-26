@@ -148,14 +148,17 @@ client = OpenAI(api_key=api_key)
 # --- 4. CHAT DISPLAY & AUTO-VOICE ---
 if len(st.session_state.chat_history) == 1:
     st.info(f"**Bereit für das Gespräch.** Eröffnen Sie den Dialog, indem Sie unten eine Nachricht eingeben oder das Mikrofon nutzen.")
-
 # Render chat messages
 for i, message in enumerate(st.session_state.chat_history):
     if message["role"] != "system":
-        label = "Du" if message["role"] == "user" else ai_display_name
-        with st.chat_message(message["role"]):
+        is_user = message["role"] == "user"
+        label = "Du" if is_user else ai_display_name
+        
+        avatar_icon = "👤" if is_user else "👩‍💼" 
+        
+        with st.chat_message(message["role"], avatar=avatar_icon):
             st.write(f"**{label}:** {message['content']}")
-            # Manual replay button for each AI message
+            
             if message["role"] == "assistant":
                 if st.button(f"Vorlesen", key=f"btn_{i}"):
                     tts_browser(message['content'])
@@ -252,10 +255,12 @@ if speech_capture and not st.session_state.get("finished", False):
     st.session_state.speech_input_receiver = "" # Reset
     
     with st.spinner("KI überlegt..."):
-        client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-        response = client.chat.completions.create(model=model, messages=st.session_state.chat_history)
-        ai_text = response.choices[0].message.content
-        st.session_state.chat_history.append({"role": "assistant", "content": ai_text})
+        try:
+            response = client.chat.completions.create(model=model, messages=st.session_state.chat_history)
+            ai_text = response.choices[0].message.content
+            st.session_state.chat_history.append({"role": "assistant", "content": ai_text})
+        except Exception as e:
+            st.error(f"Fehler: {e}")
     st.rerun()
 
 # --- OPENAI CALL ---
