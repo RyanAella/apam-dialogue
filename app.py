@@ -12,9 +12,7 @@ model = "gpt-4o"
 st.set_page_config(page_title="SI Dialogue Lab", layout="centered")
 st.title("SI Dialogue Lab")
 
-# Initialize session state for tracking audio playback of the briefing
-if "briefing_active" not in st.session_state:
-    st.session_state.briefing_active = False
+
 
 # --- 1. SIDEBAR: CENTRAL AUDIO CONTROLS ---
 with st.sidebar:
@@ -27,7 +25,6 @@ with st.sidebar:
     if st.button("Alle Sprachausgaben stoppen", use_container_width=True):
         js_code = "<script>window.speechSynthesis.cancel();</script>"
         components.html(js_code, height=0)
-        st.session_state.briefing_active = False
         st.rerun()
 
     st.divider()
@@ -169,23 +166,11 @@ st.subheader("Briefing für das Gespräch")
 
 with st.status("📋 Ihre Aufgabenstellung & Szenario-Details", expanded=True, state="complete"):
     st.markdown(user_instruction)
-    
+
     col_audio, _ = st.columns([1, 2])
     with col_audio:
-        if not st.session_state.briefing_active:
-            if st.button("🔊 Briefing vorlesen", key="read_briefing"):
-                st.session_state.briefing_active = True
-                # REMOVED st.rerun() - Streamlit handles the state change automatically
-        else:
-            if st.button("🛑 Vorlesen abbrechen", key="stop_briefing"):
-                stop_browser_speech()
-                st.session_state.briefing_active = False
-                st.rerun()
-
-# --- AUDIO TRIGGER (Outside the status box for stability) ---
-if st.session_state.briefing_active:
-    # This renders the invisible HTML component at the end of the script flow
-    tts_browser(user_instruction)
+        if st.button("🔊 Briefing vorlesen", key="read_briefing"):
+            tts_browser(user_instruction)
 
 # --- 3. SESSION STATE INITIALIZATION ---
 if "current_scenario" not in st.session_state or st.session_state.current_scenario != selected_scenario_name:
@@ -195,7 +180,6 @@ if "current_scenario" not in st.session_state or st.session_state.current_scenar
     st.session_state.chat_history = [{"role": "system", "content": full_ki_logic + wait_instruction}]
     st.session_state.finished = False
     st.session_state.current_scenario = selected_scenario_name
-    st.session_state.briefing_active = False
     st.rerun()
 
 # OpenAI Client Setup
@@ -229,7 +213,6 @@ for i, message in enumerate(st.session_state.chat_history):
 if not st.session_state.get("finished", False):
     if user_input := st.chat_input("Schreiben Sie Ihre Antwort..."):
         st.session_state.chat_history.append({"role": "user", "content": user_input})
-        st.session_state.briefing_active = False
         try:
             response = client.chat.completions.create(
                 model=model,
