@@ -6,14 +6,14 @@ import os
 import json, re
 from dotenv import load_dotenv
 
-# --- INITIAL SETUP ---
+# --- 1. INITIAL SETUP ---
 load_dotenv()
 model = "gpt-4o"
 
 st.set_page_config(page_title="SI Dialogue Lab", layout="centered")
 st.title("SI Dialogue Lab")
 
-# CSS to hide the STT receiver input field and make the UI clean
+# CSS to hide the hidden STT receiver input field completely
 st.markdown("""
     <style>
     div[data-testid="stTextInput"]:has(input[aria-label="STT Receiver"]) {
@@ -22,7 +22,7 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# --- SESSION STATE INITIALIZATION ---
+# --- 2. SESSION STATE INITIALIZATION ---
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = []
 if "finished" not in st.session_state:
@@ -30,14 +30,14 @@ if "finished" not in st.session_state:
 if "last_spoken" not in st.session_state:
     st.session_state.last_spoken = None
 
-# --- UTILITY FUNCTIONS ---
+# --- 3. UTILITY FUNCTIONS ---
 def extract_role_label(text):
-    """Extracts the character name from the scenario prompt for GUI labeling."""
+    """Extracts character name from scenario prompt for UI labels."""
     match = re.search(r"DU BIST (?:DIE|DER)\s+([A-ZÄÖÜa-zäöü]+)", text)
     return match.group(1) if match else "Gesprächspartner*in"
 
 def format_for_tts(text: str) -> str:
-    """Cleans text for better Text-to-Speech flow."""
+    """Prepares text for cleaner audio output."""
     text = re.sub(r"\n\s*[-•]\s*", ". ", text)
     text = re.sub(r"\n{2,}", ". ", text)
     text = text.replace("\n", " ")
@@ -45,7 +45,7 @@ def format_for_tts(text: str) -> str:
     return text.strip()
 
 def tts_browser(text):
-    """Uses Web Speech API to read text via Javascript injection."""
+    """Injects JS for browser-native Text-to-Speech."""
     if not text:
         return
     tts_text = format_for_tts(text)
@@ -62,7 +62,17 @@ def tts_browser(text):
     """
     components.html(js_code, height=0)
 
-# --- DATA LOADING ---
+def process_ai_response(text):
+    """Sends user input to OpenAI and updates history."""
+    if text and not st.session_state.finished:
+        st.session_state.chat_history.append({"role": "user", "content": text})
+        with st.spinner("KI überlegt..."):
+            response = client.chat.completions.create(model=model, messages=st.session_state.chat_history)
+            ai_text = response.choices[0].message.content
+            st.session_state.chat_history.append({"role": "assistant", "content": ai_text})
+        st.rerun()
+
+# --- 4. DATA LOADING & SCENARIO HANDLING ---
 SCENARIOS = {
     "Verspätungen beim Reporting": {
         "scenario": "scenario_reporting.txt",
@@ -77,7 +87,6 @@ SCENARIOS = {
 selected_scenario_name = st.selectbox("Wählen Sie ein Szenario:", list(SCENARIOS.keys()))
 selected_files = SCENARIOS[selected_scenario_name]
 
-# Load prompts
 scenario_path = os.path.join("prompts", "scenarios", selected_files["scenario"])
 analysis_path = os.path.join("prompts", "analysis", selected_files["analysis"])
 
@@ -89,7 +98,7 @@ if os.path.exists(scenario_path):
         ai_display_name = extract_role_label(role_part)
     else:
         ai_display_name = "Gesprächspartner*in"
-
+    
     content_parts = raw_content.split("### SYSTEM PROMPT ###")
     user_instruction = content_parts[0].replace("### GUI INSTRUCTION ###", "").strip()
     full_ki_logic = content_parts[1].strip() if len(content_parts) > 1 else raw_content
@@ -101,7 +110,29 @@ if os.path.exists(analysis_path):
     with open(analysis_path, "r", encoding="utf-8") as f:
         mentor_instructions = f.read()
 
-# --- SIDEBAR & RESET ---
+# --- 5. INITIALIZE CHAT ON SCENARIO CHANGE ---
+if "current_scenario" not in st.session_state or st.session_state.current_scenario != selected_scenario_name:
+    st.session_state.chat_history = [{"role": "system", "content": full_ki_logic + "\n\nAntworte direkt in deiner Rolle."}]
+    st.session_state.finished = False
+    st.session_state.last_spoken = None
+    st.session_state.current_scenario = selected_scenario_name
+    st.rerun()
+
+# OpenAI Client
+api_key = os.getenv("OPENAI_API_KEY")
+client = OpenAI(api_key=api_key)
+
+# --- 6. SPEECH-TO-TEXT TRIGGER (CRITICAL POSITION) ---
+# This receiver must be defined here to process input BEFORE rendering the chat
+voice_input = st.text_input("STT Receiver", key="speech_input_receiver", label_visibility="collapsed")
+
+if voice_input:
+    captured_text = voice_input
+    # Clear the text input state by setting it to empty in the session state
+    st.session_state["speech_input_receiver"] = "" 
+    process_ai_response(captured_text)
+
+# --- 7. SIDEBAR ---
 with st.sidebar:
     st.header("Audio Einstellungen")
     auto_speak = st.toggle("Antworten automatisch vorlesen", value=False)
@@ -109,78 +140,42 @@ with st.sidebar:
         components.html("<script>window.speechSynthesis.cancel();</script>", height=0)
         st.rerun()
 
-if "current_scenario" not in st.session_state or st.session_state.current_scenario != selected_scenario_name:
-    st.session_state.chat_history = [{"role": "system", "content": full_ki_logic + "\n\nAntworte direkt in deiner Rolle."}]
-    st.session_state.finished = False
-    st.session_state.current_scenario = selected_scenario_name
-    st.rerun()
-
-# OpenAI Setup
-api_key = os.getenv("OPENAI_API_KEY")
-client = OpenAI(api_key=api_key)
-
-# --- THE TRIGGER LOGIC (CRITICAL FOR STARTING DIALOGUE) ---
-def process_ai_response(text):
-    """Main function to handle user input and trigger AI response."""
-    if text and not st.session_state.finished:
-        st.session_state.chat_history.append({"role": "user", "content": text})
-        with st.spinner("KI überlegt..."):
-            response = client.chat.completions.create(model=model, messages=st.session_state.chat_history)
-            ai_text = response.choices[0].message.content
-            st.session_state.chat_history.append({"role": "assistant", "content": ai_text})
-        st.rerun()
-
-# Hidden input to receive JS data
-# The key 'speech_input_receiver' matches the JS widgetId
-voice_input = st.text_input("STT Receiver", key="speech_input_receiver", label_visibility="collapsed")
-
-# Check if new voice input arrived and process immediately
-if voice_input:
-    st.session_state["speech_input_receiver"] = "" # Reset state to avoid loops
-    process_ai_response(voice_input)
-
-# --- UI DISPLAY ---
+# --- 8. BRIEFING UI ---
 st.subheader("Briefing für das Gespräch")
 with st.status("📋 Aufgabenstellung & Szenario-Details", expanded=True, state="complete"):
     st.markdown(user_instruction)
+    if st.button("🔊 Briefing vorlesen", key="read_briefing"):
+        tts_browser(user_instruction)
 
+# --- 9. CHAT DISPLAY ---
 if len(st.session_state.chat_history) <= 1:
-    st.info("**Bereit für das Gespräch.** Nutzen Sie das Mikrofon oder das Tippfeld.")
+    st.info("**Bereit für das Gespräch.** Nutzen Sie das Mikrofon oder das Textfeld.")
 
-# Render Chat
 for i, message in enumerate(st.session_state.chat_history):
     if message["role"] != "system":
         is_user = message["role"] == "user"
+        label = "Du" if is_user else ai_display_name
         avatar = "👤" if is_user else "👩‍💼" 
         with st.chat_message(message["role"], avatar=avatar):
-            st.write(f"**{'Du' if is_user else ai_display_name}:** {message['content']}")
+            st.write(f"**{label}:** {message['content']}")
+            if not is_user:
+                if st.button("Vorlesen", key=f"btn_{i}"):
+                    tts_browser(message['content'])
 
-# Auto-TTS for last AI message
+# Auto-TTS logic
 if auto_speak and len(st.session_state.chat_history) > 1:
     last_msg = st.session_state.chat_history[-1]
     if last_msg["role"] == "assistant" and st.session_state.last_spoken != last_msg["content"]:
         tts_browser(last_msg["content"])
         st.session_state.last_spoken = last_msg["content"]
 
-# Text Input (Normal typing)
+# --- 10. INPUT SECTION ---
 user_text = st.chat_input("Schreiben Sie Ihre Antwort...")
 if user_text:
     process_ai_response(user_text)
 
-# 1. PLATZIERE DIESEN BLOCK DIREKT NACH DEM SETUP (VOR DEM CHAT-DISPLAY)
-# This receiver must be at the top to catch the data before rendering
-voice_input = st.text_input("STT Receiver", key="speech_input_receiver", label_visibility="collapsed")
-
-# Trigger processing immediately if voice data is present
-if voice_input:
-    # Use a temporary variable and clear the state immediately to prevent loops
-    captured_text = voice_input
-    st.session_state["speech_input_receiver"] = "" 
-    # Directly call the AI function
-    process_ai_response(captured_text)
-
-# --- JAVASCRIPT BLOCK (Kopiere diesen Teil in dein components.html) ---
 st.markdown("### 🎤 Spracheingabe")
+# JavaScript component that captures voice and sends it to the STT Receiver widget
 components.html(
     """
     <div style="display:flex; align-items:center; gap:10px;">
@@ -194,9 +189,13 @@ components.html(
     const status = document.getElementById("status");
     btn.onclick = () => {
         const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-        if (!Recognition) { status.innerText = "Nicht unterstützt."; return; }
+        if (!Recognition) { 
+            status.innerText = "❌ Browser nicht unterstützt."; 
+            return; 
+        }
         const rec = new Recognition();
         rec.lang = 'de-DE';
+        rec.interimResults = false;
         
         rec.onstart = () => { 
             status.innerText = "🔴 Ich höre zu..."; 
@@ -206,23 +205,24 @@ components.html(
         rec.onresult = e => {
             const text = e.results[0][0].transcript;
             
-            // Step 1: Push text to Streamlit
+            // 1. Set the value in the Streamlit widget (STT Receiver)
             window.parent.postMessage({
                 type: 'streamlit:set_widget_value',
                 data: {value: text, widgetId: 'speech_input_receiver'}
             }, '*');
             
-            // Step 2: NEW! Force a "Rerun" signal so Python script executes immediately
+            // 2. Force a rerun signal so Python detects the change immediately
             setTimeout(() => {
                 window.parent.postMessage({
-                    type: 'streamlit:set_page_config',
-                    data: {title: "SI Dialogue Lab"} 
+                    type: 'streamlit:set_page_config', 
+                    data: {title: "SI Dialogue Lab"}
                 }, '*');
             }, 300);
             
             status.innerText = "✅ Erkannt: " + text;
         };
         
+        rec.onerror = e => { status.innerText = "❌ Fehler: " + e.error; };
         rec.onend = () => { btn.style.backgroundColor = "#f0f2f6"; };
         rec.start();
     };
@@ -230,15 +230,18 @@ components.html(
     """, height=100
 )
 
-# --- FOOTER & ANALYSIS ---
+# --- 11. END SESSION & ANALYSIS ---
 st.divider()
 if not st.session_state.finished:
-    if st.button("Beenden & Feedback", type="primary"):
-        st.session_state.finished = True
-        st.rerun()
+    c1, c2 = st.columns(2)
+    with c1:
+        if st.button("Gespräch zurücksetzen", use_container_width=True):
+            st.session_state.chat_history = []; st.rerun()
+    with c2:
+        if st.button("Beenden & Feedback", type="primary", use_container_width=True):
+            st.session_state.finished = True; st.rerun()
 else:
     st.header("Mentor Feedback")
-    # (Feedback logic remains as per your working version)
     if "mentor_feedback" not in st.session_state:
         with st.spinner("Analysiere..."):
             chat_list = [m for m in st.session_state.chat_history if m["role"] != "system"]
