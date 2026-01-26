@@ -34,7 +34,7 @@ with st.sidebar:
 def extract_role_label(text):
     """Extracts the character name from the scenario prompt for GUI labeling."""
     match = re.search(r"DU BIST (?:DIE|DER)\s+([A-ZÄÖÜa-zäöü]+)", text)
-    return m.group(1) if m else "Gesprächspartner*in"
+    return match.group(1) if match else "Gesprächspartner*in"
 
 # --- 1b BROWSER AUDIO ENGINE (JAVASCRIPT INJECTION) ---
 def format_for_tts(text: str) -> str:
