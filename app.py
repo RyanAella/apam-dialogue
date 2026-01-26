@@ -1,4 +1,4 @@
-from time import time
+import time
 import streamlit as st
 import streamlit.components.v1 as components
 from openai import OpenAI
@@ -70,7 +70,7 @@ def tts_browser(text):
     }})();
     </script>
     """
-    components.html(js_code, height=0, key=f"tts_{time.time()}")
+    components.html(js_code, height=0, key=f"tts_{time()}")
 
 def stop_browser_speech():
     """Immediately halts the browser's speech synthesis engine."""
