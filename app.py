@@ -41,17 +41,17 @@ with st.sidebar:
         components.html(js_code, height=0)
         st.rerun()
 
-    st.divider()    
-    st.subheader("Eingabe (Sprechen)")
-    st.write("Klicken Sie den Button, um die Spracherkennung zu starten.")
-    if st.button("Jetzt Sprechen", use_container_width=True):
+    # st.divider()    
+    # st.subheader("Eingabe (Sprechen)")
+    # st.write("Klicken Sie den Button, um die Spracherkennung zu starten.")
+    # if st.button("Jetzt Sprechen", use_container_width=True):
         # Trigger flag to inject STT JavaScript after the next rerun
-        st.session_state.start_stt = True
+        # st.session_state.start_stt = True
 
 # --- STT TRIGGER ---
-if st.session_state.get("start_stt", False):
-    stt_browser()
-    st.session_state.start_stt = False
+# if st.session_state.get("start_stt", False):
+    # stt_browser()
+    # st.session_state.start_stt = False
 
 # --- 2. DATA LOADING & SCENARIO HANDLING ---
 selected_scenario_name = st.selectbox("Wählen Sie ein Szenario:", list(SCENARIOS.keys()))
