@@ -20,6 +20,67 @@ if "chat_history" not in st.session_state:
 if "finished" not in st.session_state:
     st.session_state.finished = False
 
+    # --- 1. SIDEBAR: CENTRAL AUDIO CONTROLS ---
+with st.sidebar:
+    st.header("Audio Einstellungen")
+
+    st.subheader("Ausgabe (Hören)")
+    auto_speak = st.toggle("Antworten automatisch vorlesen", value=False)
+
+    # Emergency stop button for all active browser speech synthesis
+    if st.button("Alle Sprachausgaben stoppen", use_container_width=True):
+        js_code = "<script>window.speechSynthesis.cancel();</script>"
+        components.html(js_code, height=0)
+        st.rerun()
+
+    st.divider()
+
+    st.subheader("Eingabe (Sprechen)")
+    st.write("Klicken Sie den Button, um die Spracherkennung zu starten.")
+    if st.button("Jetzt Sprechen", use_container_width=True):
+        # Trigger flag to inject STT JavaScript after the next rerun
+        st.session_state.start_stt = True
+
+# --- 1a UTILITY FUNCTIONS ---
+def extract_role_label(text):
+    """Extracts the character name from the scenario prompt for GUI labeling."""
+    match = re.search(r"DU BIST (?:DIE|DER)\s+([A-ZÄÖÜa-zäöü]+)", text)
+    if match:
+        return match.group(1).strip()
+    return "Gesprächspartner*in"
+
+# --- 1b BROWSER AUDIO ENGINE (JAVASCRIPT INJECTION) ---
+def tts_browser(text):
+    """Uses Web Speech API to read text. Cleans strings for JS compatibility."""
+    if not text:
+        return
+    clean_text = text.replace("'", "\\'").replace("\n", " ")
+    js_code = f"""
+    <script>
+    (function() {{
+        window.speechSynthesis.cancel(); 
+        var msg = new SpeechSynthesisUtterance('{clean_text}');
+        msg.lang = 'de-DE';
+        window.speechSynthesis.speak(msg);
+    }})();
+    </script>
+    """
+    try:
+        # We use a fixed string combined with a hash to avoid the metric error
+        # but still allow updates when the text changes.
+        components.html(js_code, height=0, key=f"tts_component_{hash(text[:20])}")
+    except Exception:
+        pass
+
+def stop_browser_speech():
+    """Immediately halts the browser's speech synthesis engine."""
+    js_code = """
+    <script>
+    window.speechSynthesis.cancel();
+    </script>
+    """
+    components.html(js_code, height=0)
+
 # --- 3. CORE LOGIC ---
 def process_ai_response(text):
     """Verarbeitet User-Input und holt KI-Antwort."""
@@ -75,8 +136,16 @@ if "current_scenario" not in st.session_state or st.session_state.current_scenar
     st.session_state.current_scenario = selected_scenario_name
     st.rerun()
 
-# --- 6. UI ---
-st.info(user_instruction)
+# --- BRIEFING UI SECTION ---
+st.subheader("Briefing für das Gespräch")
+
+with st.status("📋 Ihre Aufgabenstellung & Szenario-Details", expanded=True, state="complete"):
+    st.markdown(user_instruction)
+
+    col_audio, _ = st.columns([1, 2])
+    with col_audio:
+        if st.button("🔊 Briefing vorlesen", key="read_briefing"):
+            tts_browser(user_instruction)
 
 for msg in st.session_state.chat_history:
     if msg["role"] != "system":
