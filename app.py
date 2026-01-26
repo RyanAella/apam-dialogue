@@ -168,52 +168,67 @@ if auto_speak and len(st.session_state.chat_history) > 1:
 # --- CHAT INPUT ---
 user_input = st.chat_input("Schreiben Sie Ihre Antwort...")
 
-# --- 🎤 MICROPHONE (PURE JS, WORKING) ---
+# --- 🎤 MICROPHONE (FIXED) ---
 st.markdown("### 🎤 Spracheingabe")
 
+# Ein verstecktes Feld, um den Text vom JavaScript zu empfangen
+if "speech_text" not in st.session_state:
+    st.session_state.speech_text = ""
+
+# JavaScript-Komponente
 components.html(
-    """
+    f"""
     <div style="display:flex; justify-content:flex-start;">
       <button id="micBtn" style="
-        font-size:18px;
-        padding:8px 14px;
-        border-radius:8px;
-        cursor:pointer;
+        font-size:18px; padding:10px 16px; border-radius:8px;
+        cursor:pointer; background-color:#f0f2f6; border:1px solid #ddd;
       ">
         🎤 Jetzt sprechen
       </button>
+      <span id="status" style="margin-left:10px; align-self:center; font-family:sans-serif; font-size:14px; color:gray;"></span>
     </div>
 
     <script>
     const btn = document.getElementById("micBtn");
+    const status = document.getElementById("status");
 
-    btn.onclick = () => {
-        if (!('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) {
-            alert("Spracherkennung wird nicht unterstützt (Chrome / Edge erforderlich).");
+    btn.onclick = () => {{
+        if (!('webkitSpeechRecognition' in window)) {{
+            alert("Bitte nutzen Sie Chrome oder Edge für die Spracherkennung.");
             return;
-        }
+        }}
 
-        const rec = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+        const rec = new webkitSpeechRecognition();
         rec.lang = 'de-DE';
-        rec.interimResults = false;
-
-        rec.onresult = e => {
+        status.innerText = "Ich höre zu...";
+        
+        rec.onresult = e => {{
             const text = e.results[0][0].transcript;
-            const ta = window.parent.document.querySelector(
-                'textarea[data-testid="stChatInputTextArea"]'
-            );
-            if (ta) {
-                ta.value = text;
-                ta.dispatchEvent(new Event('input', { bubbles: true }));
-            }
-        };
+            // Trick: Wir senden den Text zurück an Streamlit
+            window.parent.postMessage({{
+                type: 'streamlit:set_widget_value',
+                data: {{ value: text, widgetId: 'speech_input_receiver' }}
+            }}, '*');
+            status.innerText = "Erkannt: " + text;
+        }};
 
+        rec.onerror = () => {{ status.innerText = "Fehler!"; }};
+        rec.onend = () => {{ if(status.innerText == "Ich höre zu...") status.innerText = ""; }};
+        
         rec.start();
-    };
+    }};
     </script>
     """,
-    height=120
+    height=70
 )
+
+# Dieses unsichtbare Feld fängt den Text ab
+st.text_input("Hidden STT", key="speech_input_receiver", label_visibility="collapsed")
+
+# Logik: Wenn Sprache erkannt wurde, als user_input behandeln
+if st.session_state.speech_input_receiver and not st.session_state.finished:
+    user_input = st.session_state.speech_input_receiver
+    st.session_state.speech_input_receiver = "" # Sofort leeren für das nächste Mal
 
 # --- OPENAI CALL ---
 if user_input and not st.session_state.finished:
