@@ -3,6 +3,18 @@ import json
 import re
 
 def format_for_tts(text: str) -> str:
+    # Remove Markdown links, keeping the link text
+    text = re.sub(r'\[([^\]]+)\]\([^\)]+\)', r'\1', text)
+    
+    # Remove Markdown images, keeping the alt text
+    text = re.sub(r'!\[([^\]]+)\]\([^\)]+\)', r'\1', text)
+
+    # Remove Markdown formatting for bold, italic, and code
+    text = re.sub(r'(\*\*|__|\*|_|`)', '', text)
+    
+    # Remove heading symbols
+    text = re.sub(r'^\s*#+\s*', '', text, flags=re.MULTILINE)
+
     # Listen / Aufzählungen
     text = re.sub(r"\n\s*[-•]\s*", ". ", text)
 
