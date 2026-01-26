@@ -169,15 +169,19 @@ if auto_speak and len(st.session_state.chat_history) > 1:
 user_input = st.chat_input("Schreiben Sie Ihre Antwort...")
 
 # --- 🎤 MICROPHONE (PURE JS, WORKING) ---
+st.markdown("### 🎤 Spracheingabe")
+
 components.html(
     """
-    <div style="text-align:right; margin-top:-60px; margin-bottom:20px;">
+    <div style="display:flex; justify-content:flex-start;">
       <button id="micBtn" style="
-        font-size:20px;
-        padding:6px 10px;
-        border-radius:50%;
+        font-size:18px;
+        padding:8px 14px;
+        border-radius:8px;
         cursor:pointer;
-      ">🎤</button>
+      ">
+        🎤 Jetzt sprechen
+      </button>
     </div>
 
     <script>
@@ -185,7 +189,7 @@ components.html(
 
     btn.onclick = () => {
         if (!('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) {
-            alert("Spracherkennung wird nicht unterstützt.");
+            alert("Spracherkennung wird nicht unterstützt (Chrome / Edge erforderlich).");
             return;
         }
 
@@ -208,7 +212,7 @@ components.html(
     };
     </script>
     """,
-    height=80
+    height=120
 )
 
 # --- OPENAI CALL ---
