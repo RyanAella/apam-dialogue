@@ -1,8 +1,9 @@
+import time
 import streamlit as st
 import streamlit.components.v1 as components
 from openai import OpenAI
 import os
-import re
+import json, re
 from dotenv import load_dotenv
 
 # --- INITIAL SETUP ---
@@ -52,27 +53,43 @@ def extract_role_label(text):
     return "Gesprächspartner*in"
 
 # --- 1b BROWSER AUDIO ENGINE (JAVASCRIPT INJECTION) ---
+import re
+
+def format_for_tts(text: str) -> str:
+    # Listen / Aufzählungen
+    text = re.sub(r"\n\s*[-•]\s*", ". ", text)
+
+    # Absatzumbrüche → deutliche Pause
+    text = re.sub(r"\n{2,}", ". ", text)
+
+    # Einzelne Zeilenumbrüche → kurze Pause
+    text = text.replace("\n", " ")
+
+    # Whitespace normalisieren
+    text = re.sub(r"\s+", " ", text)
+
+    return text.strip()
+
 def tts_browser(text):
     """Uses Web Speech API to read text. Cleans strings for JS compatibility."""
     if not text:
         return
-    clean_text = text.replace("'", "\\'").replace("\n", " ")
+    
+    tts_text = format_for_tts(text)
+
+    clean_text = json.dumps(tts_text)
+
     js_code = f"""
     <script>
     (function() {{
         window.speechSynthesis.cancel(); 
-        var msg = new SpeechSynthesisUtterance('{clean_text}');
+        var msg = new SpeechSynthesisUtterance({clean_text});
         msg.lang = 'de-DE';
         window.speechSynthesis.speak(msg);
     }})();
     </script>
     """
-    try:
-        # We use a fixed string combined with a hash to avoid the metric error
-        # but still allow updates when the text changes.
-        components.html(js_code, height=0, key=f"tts_component_{hash(text[:20])}")
-    except Exception:
-        pass
+    components.html(js_code, height=0)
 
 def stop_browser_speech():
     """Immediately halts the browser's speech synthesis engine."""
