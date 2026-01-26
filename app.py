@@ -6,21 +6,18 @@ import os
 import json, re
 from dotenv import load_dotenv
 
+# For STT via WebRTC
+from streamlit_webrtc import webrtc_streamer, WebRtcMode, ClientSettings
+import av
+import whisper
+import tempfile
+
 # --- 1. INITIAL SETUP ---
 load_dotenv()
 model = "gpt-4o"
 
 st.set_page_config(page_title="SI Dialogue Lab", layout="centered")
 st.title("SI Dialogue Lab")
-
-# CSS to hide the hidden STT receiver input field completely
-st.markdown("""
-    <style>
-    div[data-testid="stTextInput"]:has(input[aria-label="STT Receiver"]) {
-        display: none;
-    }
-    </style>
-    """, unsafe_allow_html=True)
 
 # --- 2. SESSION STATE INITIALIZATION ---
 if "chat_history" not in st.session_state:
@@ -122,15 +119,44 @@ if "current_scenario" not in st.session_state or st.session_state.current_scenar
 api_key = os.getenv("OPENAI_API_KEY")
 client = OpenAI(api_key=api_key)
 
-# --- 6. SPEECH-TO-TEXT TRIGGER (CRITICAL POSITION) ---
-# This receiver must be defined here to process input BEFORE rendering the chat
-voice_input = st.text_input("STT Receiver", key="speech_input_receiver", label_visibility="collapsed")
+# --- 5. SPEECH-TO-TEXT VIA WEBRTC ---
+st.markdown("### 🎤 Spracheingabe (WebRTC)")
 
-if voice_input:
-    captured_text = voice_input
-    # Clear the text input state by setting it to empty in the session state
-    st.session_state["speech_input_receiver"] = "" 
-    process_ai_response(captured_text)
+# Whisper-Modell laden
+@st.cache_resource
+def load_whisper_model():
+    return whisper.load_model("small")  # small = guter Kompromiss zwischen Geschwindigkeit & Qualität
+
+whisper_model = load_whisper_model()
+
+def audio_callback(frame: av.AudioFrame):
+    """Verarbeitet Audio-Frames und konvertiert in WAV für Whisper"""
+    with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmpfile:
+        frame.to_ndarray().tofile(tmpfile)
+        tmpfile.flush()
+        result = whisper_model.transcribe(tmpfile.name, language="de")
+        text = result["text"].strip()
+        if text:
+            st.session_state["last_recognized_speech"] = text
+    return frame
+
+webrtc_streamer(
+    key="speech-recorder",
+    mode=WebRtcMode.RECVONLY,
+    client_settings=ClientSettings(
+        rtc_configuration={"iceServers": [{"urls": ["stun:stun.l.google.com:19302"]}]},
+        media_stream_constraints={"audio": True, "video": False},
+    ),
+    audio_receiver_size=1024,
+    audio_frame_callback=audio_callback,
+)
+
+# Wenn neue Sprache erkannt wurde → direkt an Chat senden
+if "last_recognized_speech" in st.session_state:
+    captured_text = st.session_state.pop("last_recognized_speech")
+    if captured_text:
+        st.info(f"🎙 Erkannt: {captured_text}")
+        process_ai_response(captured_text)
 
 # --- 7. SIDEBAR ---
 with st.sidebar:
