@@ -24,35 +24,19 @@ if "last_spoken" not in st.session_state:
 # --- 1. SIDEBAR: CENTRAL AUDIO CONTROLS ---
 with st.sidebar:
     st.header("Audio Einstellungen")
-
-    st.subheader("Ausgabe (Hören)")
     auto_speak = st.toggle("Antworten automatisch vorlesen", value=False)
 
-    # Emergency stop button for all active browser speech synthesis
     if st.button("Alle Sprachausgaben stoppen", use_container_width=True):
-        js_code = "<script>window.speechSynthesis.cancel();</script>"
-        components.html(js_code, height=0)
+        components.html("<script>window.speechSynthesis.cancel();</script>", height=0)
         st.rerun()
-
-    st.divider()
-    
-    st.subheader("Eingabe (Sprechen)")
-    st.write("Klicken Sie den Button, um die Spracherkennung zu starten.")
-    if st.button("Jetzt Sprechen", use_container_width=True):
-        # Trigger flag to inject STT JavaScript after the next rerun
-        st.session_state.start_stt = True
 
 # --- 1a UTILITY FUNCTIONS ---
 def extract_role_label(text):
     """Extracts the character name from the scenario prompt for GUI labeling."""
     match = re.search(r"DU BIST (?:DIE|DER)\s+([A-ZÄÖÜa-zäöü]+)", text)
-    if match:
-        return match.group(1).strip()
-    return "Gesprächspartner*in"
+    return m.group(1) if m else "Gesprächspartner*in"
 
 # --- 1b BROWSER AUDIO ENGINE (JAVASCRIPT INJECTION) ---
-import re
-
 def format_for_tts(text: str) -> str:
     # Listen / Aufzählungen
     text = re.sub(r"\n\s*[-•]\s*", ". ", text)
@@ -85,52 +69,6 @@ def tts_browser(text):
         msg.lang = 'de-DE';
         window.speechSynthesis.speak(msg);
     }})();
-    </script>
-    """
-    components.html(js_code, height=0)
-
-def stop_browser_speech():
-    """Immediately halts the browser's speech synthesis engine."""
-    js_code = """
-    <script>
-    window.speechSynthesis.cancel();
-    </script>
-    """
-    components.html(js_code, height=0)
-
-def stt_browser():
-    """
-    Triggers the browser's SpeechRecognition API.
-    Captures audio, sends it to the hidden Streamlit widget, and auto-submits the form.
-    """
-    js_code = """
-    <script>
-    var recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
-    recognition.lang = 'de-DE';
-    recognition.interimResults = false;
-    recognition.start();
-
-    recognition.onresult = function(event) {
-        var transcript = event.results[0][0].transcript;
-
-        window.parent.postMessage({
-            type: 'streamlit:set_widget_value',
-            data: { value: transcript, widgetId: 'chat_input' }
-        }, '*');
-
-        setTimeout(function() {
-            const textArea = window.parent.document.querySelector('textarea[data-testid="stChatInputTextArea"]');
-            if (textArea) {
-                textArea.value = transcript;
-                textArea.dispatchEvent(new Event('input', { bubbles: true }));
-                
-                const enterEvent = new KeyboardEvent('keydown', {
-                    bubbles: true, cancelable: true, key: 'Enter', code: 'Enter', keyCode: 13
-                });
-                textArea.dispatchEvent(enterEvent);
-            }
-        }, 300);
-    };
     </script>
     """
     components.html(js_code, height=0)
@@ -227,15 +165,51 @@ if auto_speak and len(st.session_state.chat_history) > 1:
         tts_browser(last_msg["content"])
         st.session_state.last_spoken = last_msg["content"]
 
-# --- CHAT INPUT + MIC ---
-col_input, col_mic = st.columns([6, 1])
+# --- CHAT INPUT ---
+user_input = st.chat_input("Schreiben Sie Ihre Antwort...")
 
-with col_input:
-    user_input = st.chat_input("Schreiben Sie Ihre Antwort...")
+# --- 🎤 MICROPHONE (PURE JS, WORKING) ---
+components.html(
+    """
+    <div style="text-align:right; margin-top:-60px; margin-bottom:20px;">
+      <button id="micBtn" style="
+        font-size:20px;
+        padding:6px 10px;
+        border-radius:50%;
+        cursor:pointer;
+      ">🎤</button>
+    </div>
 
-with col_mic:
-    if st.button("🎤", use_container_width=True):
-        stt_browser()
+    <script>
+    const btn = document.getElementById("micBtn");
+
+    btn.onclick = () => {
+        if (!('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) {
+            alert("Spracherkennung wird nicht unterstützt.");
+            return;
+        }
+
+        const rec = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+        rec.lang = 'de-DE';
+        rec.interimResults = false;
+
+        rec.onresult = e => {
+            const text = e.results[0][0].transcript;
+            const ta = window.parent.document.querySelector(
+                'textarea[data-testid="stChatInputTextArea"]'
+            );
+            if (ta) {
+                ta.value = text;
+                ta.dispatchEvent(new Event('input', { bubbles: true }));
+            }
+        };
+
+        rec.start();
+    };
+    </script>
+    """,
+    height=80
+)
 
 # --- OPENAI CALL ---
 if user_input and not st.session_state.finished:
