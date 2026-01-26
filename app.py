@@ -21,6 +21,8 @@ if "finished" not in st.session_state:
 if "last_spoken" not in st.session_state:
     st.session_state.last_spoken = None
 
+speech_capture = st.text_input("STT Receiver", key="speech_input_receiver", label_visibility="collapsed")
+
 # --- 1. SIDEBAR: CENTRAL AUDIO CONTROLS ---
 with st.sidebar:
     st.header("Audio Einstellungen")
@@ -168,11 +170,8 @@ if auto_speak and len(st.session_state.chat_history) > 1:
 # --- CHAT INPUT ---
 user_input = st.chat_input("Schreiben Sie Ihre Antwort...")
 
-# --- 🎤 MICROPHONE (WITH DIAGNOSTICS) ---
+# --- 🎤 MICROPHONE (STABILER) ---
 st.markdown("### 🎤 Spracheingabe")
-
-if "speech_input_receiver" not in st.session_state:
-    st.session_state.speech_input_receiver = ""
 
 components.html(
     """
@@ -190,17 +189,6 @@ components.html(
     const btn = document.getElementById("micBtn");
     const status = document.getElementById("status");
 
-    // Browser-Check
-    const isChrome = /Chrome/.test(navigator.userAgent) && /Google Inc/.test(navigator.vendor);
-    const isEdge = /Edg/.test(navigator.userAgent);
-
-    if (!isChrome && !isEdge) {
-        status.innerText = "⚠️ Bitte Chrome oder Edge nutzen.";
-        btn.disabled = true;
-        btn.style.opacity = "0.5";
-        btn.style.cursor = "not-allowed";
-    }
-
     btn.onclick = () => {
         const recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
         if (!recognition) {
@@ -215,6 +203,7 @@ components.html(
         
         rec.onresult = e => {
             const text = e.results[0][0].transcript;
+            // WICHTIG: Die widgetId muss zum st.text_input passen
             window.parent.postMessage({
                 type: 'streamlit:set_widget_value',
                 data: { value: text, widgetId: 'speech_input_receiver' }
@@ -222,15 +211,7 @@ components.html(
             status.innerText = "✅ Erkannt: " + text;
         };
 
-        rec.onerror = e => {
-            console.error(e);
-            status.innerText = "❌ Fehler: " + e.error + " (Check Mic-Berechtigung)";
-        };
-
-        rec.onend = () => { 
-            if(status.innerText === "🔴 Ich höre zu...") status.innerText = "Bereit."; 
-        };
-        
+        rec.onerror = e => { status.innerText = "❌ Fehler: " + e.error; };
         rec.start();
     };
     </script>
@@ -238,29 +219,23 @@ components.html(
     height=80
 )
 
-# Das versteckte Eingabefeld (wird durch das JS oben befüllt)
-st.text_input("Hidden STT", key="speech_input_receiver", label_visibility="collapsed")
-
-# Logik für die Verarbeitung
-if st.session_state.speech_input_receiver:
-    user_input = st.session_state.speech_input_receiver
+if speech_capture and not st.session_state.finished:
+    # Wir nehmen den Text aus dem Receiver
+    user_input = speech_capture
+    # WICHTIG: Wir hängen es an die History an
     st.session_state.chat_history.append({"role": "user", "content": user_input})
-    st.session_state.speech_input_receiver = "" # Reset
-    # Hier OpenAI Call triggern wie beim normalen Chat-Input
-    with st.spinner("KI überlegt..."):
+    
+    # Damit das Feld für das nächste Mal leer ist, müssen wir es via Session State resetten
+    st.session_state.speech_input_receiver = "" 
+    
+    # KI Antwort holen
+    with st.spinner("KI antwortet..."):
         client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
         response = client.chat.completions.create(model=model, messages=st.session_state.chat_history)
         ai_text = response.choices[0].message.content
         st.session_state.chat_history.append({"role": "assistant", "content": ai_text})
+    
     st.rerun()
-
-# Dieses unsichtbare Feld fängt den Text ab
-st.text_input("Hidden STT", key="speech_input_receiver", label_visibility="collapsed")
-
-# Logik: Wenn Sprache erkannt wurde, als user_input behandeln
-if st.session_state.speech_input_receiver and not st.session_state.finished:
-    user_input = st.session_state.speech_input_receiver
-    st.session_state.speech_input_receiver = "" # Sofort leeren für das nächste Mal
 
 # --- OPENAI CALL ---
 if user_input and not st.session_state.finished:
