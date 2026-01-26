@@ -70,7 +70,7 @@ def tts_browser(text):
     }})();
     </script>
     """
-    components.html(js_code, height=0, key=f"tts_{time()}")
+    components.html(js_code, height=0, key=f"tts_{time.time()}")
 
 def stop_browser_speech():
     """Immediately halts the browser's speech synthesis engine."""
