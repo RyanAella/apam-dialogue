@@ -77,6 +77,7 @@ SCENARIOS = {
 selected_scenario_name = st.selectbox("Wählen Sie ein Szenario:", list(SCENARIOS.keys()))
 selected_files = SCENARIOS[selected_scenario_name]
 
+# Correct pathing
 scenario_path = os.path.join("prompts", "scenarios", selected_files["scenario"])
 analysis_path = os.path.join("prompts", "analysis", selected_files["analysis"])
 
@@ -130,7 +131,7 @@ client = OpenAI(api_key=api_key)
 
 # --- PROCESS VOICE/TEXT INPUT ---
 def process_ai_response(text):
-    """Central function to handle AI generation after user input."""
+    """Generates AI response and updates chat history."""
     if text and not st.session_state.finished:
         st.session_state.chat_history.append({"role": "user", "content": text})
         with st.spinner("KI überlegt..."):
@@ -139,14 +140,15 @@ def process_ai_response(text):
             st.session_state.chat_history.append({"role": "assistant", "content": ai_text})
         st.rerun()
 
-# Receiver field (hidden via CSS)
-speech_capture = st.text_input("STT Receiver", key="speech_input_receiver", label_visibility="collapsed")
+# Hidden field that catches the JS transcript
+# Using an on_change callback to trigger the logic immediately
+def on_speech_capture():
+    val = st.session_state.speech_input_receiver
+    if val:
+        process_ai_response(val)
+        st.session_state.speech_input_receiver = ""
 
-# Trigger processing if voice input is detected
-if speech_capture:
-    input_text = speech_capture
-    st.session_state["speech_input_receiver"] = "" # Reset immediately
-    process_ai_response(input_text)
+st.text_input("STT Receiver", key="speech_input_receiver", on_change=on_speech_capture, label_visibility="collapsed")
 
 # --- CHAT DISPLAY ---
 if len(st.session_state.chat_history) <= 1:
@@ -163,6 +165,7 @@ for i, message in enumerate(st.session_state.chat_history):
                 if st.button("Vorlesen", key=f"btn_{i}"):
                     tts_browser(message['content'])
 
+# Auto-TTS logic
 if auto_speak and len(st.session_state.chat_history) > 1:
     last_msg = st.session_state.chat_history[-1]
     if last_msg["role"] == "assistant" and st.session_state.last_spoken != last_msg["content"]:
@@ -175,6 +178,7 @@ if user_input:
     process_ai_response(user_input)
 
 st.markdown("### 🎤 Spracheingabe")
+# The JavaScript sends a message back to Streamlit and triggers a rerun by 'faking' a widget change
 components.html(
     """
     <div style="display:flex; align-items:center; gap:10px;">
@@ -188,21 +192,41 @@ components.html(
     const status = document.getElementById("status");
     btn.onclick = () => {
         const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-        if (!Recognition) { alert("Browser nicht unterstützt."); return; }
+        if (!Recognition) { 
+            status.innerText = "❌ Browser nicht unterstützt."; 
+            return; 
+        }
         const rec = new Recognition();
         rec.lang = 'de-DE';
-        rec.onstart = () => { status.innerText = "🔴 Ich höre zu..."; btn.style.backgroundColor = "#ffcccc"; };
+        rec.interimResults = false;
+        
+        rec.onstart = () => { 
+            status.innerText = "🔴 Ich höre zu..."; 
+            btn.style.backgroundColor = "#ffcccc"; 
+        };
+        
         rec.onresult = e => {
             const text = e.results[0][0].transcript;
-            window.parent.postMessage({type: 'streamlit:set_widget_value', data: {value: text, widgetId: 'speech_input_receiver'}}, '*');
-            setTimeout(() => { window.parent.postMessage({type: 'streamlit:set_page_config', data: {}}, '*'); }, 200);
+            // 1. Set the value in the Streamlit widget
+            window.parent.postMessage({
+                type: 'streamlit:set_widget_value',
+                data: {value: text, widgetId: 'speech_input_receiver'}
+            }, '*');
+            
+            // 2. Small delay then force a rerun signal
+            setTimeout(() => {
+                window.parent.postMessage({type: 'streamlit:set_page_config', data: {}}, '*');
+            }, 300);
+            
             status.innerText = "✅ Erkannt: " + text;
         };
+        
+        rec.onerror = e => { status.innerText = "❌ Fehler: " + e.error; };
         rec.onend = () => { btn.style.backgroundColor = "#f0f2f6"; };
         rec.start();
     };
     </script>
-    """, height=80
+    """, height=100
 )
 
 # --- END SESSION & ANALYSIS ---
