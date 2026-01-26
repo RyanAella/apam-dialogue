@@ -1,3 +1,4 @@
+from time import time
 import streamlit as st
 import streamlit.components.v1 as components
 from openai import OpenAI
@@ -56,7 +57,9 @@ def tts_browser(text):
     """Uses Web Speech API to read text. Cleans strings for JS compatibility."""
     if not text:
         return
+    
     clean_text = text.replace("'", "\\'").replace("\n", " ")
+
     js_code = f"""
     <script>
     (function() {{
@@ -67,12 +70,7 @@ def tts_browser(text):
     }})();
     </script>
     """
-    try:
-        # We use a fixed string combined with a hash to avoid the metric error
-        # but still allow updates when the text changes.
-        components.html(js_code, height=0, key=f"tts_component_{hash(text[:20])}")
-    except Exception:
-        pass
+    components.html(js_code, height=0, key=f"tts_{time.time()}")
 
 def stop_browser_speech():
     """Immediately halts the browser's speech synthesis engine."""
