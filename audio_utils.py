@@ -50,6 +50,25 @@ def tts_browser(text):
     """
     components.html(js_code, height=0)
 
+def tts_browser_queued(text):
+    """Uses Web Speech API to read text, queuing it after any ongoing speech."""
+    if not text:
+        return
+
+    tts_text = format_for_tts(text)
+    clean_text = json.dumps(tts_text)
+
+    js_code = f"""
+    <script>
+    (function() {{
+        var msg = new SpeechSynthesisUtterance({clean_text});
+        msg.lang = 'de-DE';
+        window.speechSynthesis.speak(msg);
+    }})();
+    </script>
+    """
+    components.html(js_code, height=0)
+
 def stop_browser_speech():
     """Immediately halts the browser's speech synthesis engine."""
     js_code = """
@@ -83,7 +102,7 @@ def stt_browser():
             const textArea = window.parent.document.querySelector('textarea[data-testid="stChatInputTextArea"]');
             if (textArea) {{
                 textArea.value = transcript;
-                textArea.dispatchEvent(new Event('input', {{ bubbles: true }}));
+                textArea.dispatchEvent(new Event('input', {{ bubbles: true }}))
                 
                 const enterEvent = new KeyboardEvent('keydown', {{
                     bubbles: true, cancelable: true, key: 'Enter', code: 'Enter', keyCode: 13

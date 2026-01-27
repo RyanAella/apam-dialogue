@@ -4,7 +4,7 @@ import os
 from dotenv import load_dotenv
 
 # Import utility functions from new modules
-from audio_utils import tts_browser, stt_browser
+from audio_utils import tts_browser, tts_browser_queued, stt_browser
 from scenario_utils import SCENARIOS, load_scenario
 from llm_utils import get_chat_response, get_mentor_feedback
 
@@ -26,6 +26,9 @@ if "last_spoken" not in st.session_state:
     st.session_state.last_spoken = None
 if "current_scenario" not in st.session_state:
     st.session_state.current_scenario = None
+if "briefing_spoken" not in st.session_state:
+    st.session_state.briefing_spoken = False
+
 
 
 # --- 1. SIDEBAR: CENTRAL AUDIO CONTROLS ---
@@ -33,7 +36,7 @@ with st.sidebar:
     st.header("Audio Einstellungen")
 
     st.subheader("Ausgabe (Hören)")
-    auto_speak = st.toggle("Antworten automatisch vorlesen", value=False)
+    auto_speak = st.toggle("Alles automatisch vorlesen", value=False)
 
     # Emergency stop button for all active browser speech synthesis
     if st.button("Alle Sprachausgaben stoppen", use_container_width=True):
@@ -63,12 +66,14 @@ st.subheader("Briefing für das Gespräch")
 with st.status("📋 Ihre Aufgabenstellung & Szenario-Details", expanded=True, state="complete"):
     st.markdown(user_instruction)
 
-    col_audio, _ = st.columns([1, 2])
-    with col_audio:
-        if st.button("🔊 Briefing vorlesen", key="read_briefing"):
-            tts_browser(user_instruction)
+# --- 3. AUTO-READ BRIEFING & SESSION STATE INITIALIZATION ---
+# This block handles the logic for reading the briefing automatically.
+# It runs on every script rerun, checking if the toggle is on and if the
+# briefing for the current scenario has already been read.
+if auto_speak and not st.session_state.briefing_spoken:
+    tts_browser(user_instruction)
+    st.session_state.briefing_spoken = True
 
-# --- 3. SESSION STATE INITIALIZATION (ON SCENARIO CHANGE) ---
 if st.session_state.current_scenario != selected_scenario_name:
     # Setup initial chat history with system instructions
     wait_instruction = "\n\nWARTE AUF START: Der User wird das Gespräch eröffnen. Reagiere dann direkt in deiner Rolle."
@@ -77,9 +82,27 @@ if st.session_state.current_scenario != selected_scenario_name:
     st.session_state.finished = False
     st.session_state.last_spoken = None # Reset Audio-History
     st.session_state.current_scenario = selected_scenario_name
+    st.session_state.briefing_spoken = False # Reset for the new scenario
     st.rerun()
 
-# --- 4. CHAT DISPLAY & AUTO-VOICE ---
+# --- 4. CHAT LOGIC ---
+# First, handle new chat input. This adds the user's message and the AI's response
+# to the session state.
+if not st.session_state.get("finished", False):
+    if user_input := st.chat_input("Schreiben Sie Ihre Antwort..."):
+        st.session_state.chat_history.append({"role": "user", "content": user_input})
+        if auto_speak:
+            tts_browser_queued(user_input)
+        
+        ai_answer = get_chat_response(model, st.session_state.chat_history)
+        if ai_answer:
+            st.session_state.chat_history.append({"role": "assistant", "content": ai_answer})
+            if auto_speak:
+                tts_browser_queued(ai_answer)
+
+# --- 5. CHAT DISPLAY ---
+# Then, display the entire chat history. Because this runs *after* the input
+# logic, it will include the latest messages in the same run.
 if len(st.session_state.chat_history) == 1:
     st.info(f"**Bereit für das Gespräch.** Eröffnen Sie den Dialog, indem Sie unten eine Nachricht eingeben oder das Mikrofon nutzen.")
 
@@ -89,28 +112,6 @@ for i, message in enumerate(st.session_state.chat_history):
         label = "Du" if message["role"] == "user" else ai_display_name
         with st.chat_message(message["role"]):
             st.write(f"**{label}:** {message['content']}")
-            # Manual replay button for each AI message
-            if message["role"] == "assistant":
-                if st.button(f"Vorlesen", key=f"btn_{i}"):
-                    tts_browser(message['content'])
-
-# Automatic Text-to-Speech for the latest AI message
-if auto_speak and len(st.session_state.chat_history) > 1:
-    last_msg = st.session_state.chat_history[-1]
-    if last_msg["role"] == "assistant" and st.session_state.last_spoken != last_msg["content"]:
-        tts_browser(last_msg["content"])
-        st.session_state.last_spoken = last_msg["content"]
-
-# --- 5. CHAT INPUT LOGIC ---
-if not st.session_state.get("finished", False):
-    if user_input := st.chat_input("Schreiben Sie Ihre Antwort..."):
-        st.session_state.chat_history.append({"role": "user", "content": user_input})
-        
-        ai_answer = get_chat_response(model, st.session_state.chat_history)
-        if ai_answer:
-            st.session_state.chat_history.append({"role": "assistant", "content": ai_answer})
-        
-        st.rerun()
 
 # --- 6. END SESSION & ANALYSIS ---
 st.divider()
@@ -143,6 +144,9 @@ else:
             feedback = get_mentor_feedback(model, mentor_instructions, st.session_state.chat_history, ai_display_name)
             if feedback:
                 st.session_state.mentor_feedback = feedback
+                # Auto-read feedback if activated
+                if auto_speak:
+                    tts_browser(feedback)
     
     if "mentor_feedback" in st.session_state:
         st.markdown(st.session_state.mentor_feedback)
