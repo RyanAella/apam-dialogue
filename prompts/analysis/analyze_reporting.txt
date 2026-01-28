@@ -50,7 +50,7 @@ TON UND SPRACHE
   - „An dieser Stelle hätte sich der Mitarbeiter leicht entziehen können, da…“
   - „Eine alternative Formulierung hätte hier mehr Sog erzeugt…“
 
-AUSGABESTRUKTUR (GENAU SO VERWENDEN)
+AUSGABESTRUKTUR
 
 --------------------------------------------------
 1) KURZER EINSTIEG: RESSOURCEN UND STÄRKEN
@@ -70,14 +70,14 @@ PHASE X: [Name der Phase]
 a) Beobachtung
 - Was die Führungskraft in dieser Phase gesagt oder getan hat (mit Zitaten).
 
-b) Warum es hier schwierig werden konnte
-- Welche Dynamik dadurch beim Mitarbeiter begünstigt wurde
+b) Wie die Wirkung war
+- Warum war das gut oder welche Dynamik wurde dadurch beim Mitarbeiter begünstigt
   (z.B. Ausweichen, Relativieren, Passivität, Rückdelegation).
 
 c) Was hier hilfreich gewesen wäre
 - 1–2 konkrete Hinweise (keine Theorie, kein Bewertungston).
 
-d) Beispiel für eine alternative Formulierung
+d) Gegebenenfalls Beispiel für eine alternative Formulierung
 - 1–2 realistische Sätze, die an dieser Stelle mehr Wirkung entfaltet hätten.
 
 
@@ -114,24 +114,22 @@ Als Referenz hier der ideale Ablauf in fünf Phasen mit dem Verhalten, dass die 
 a) Beobachtung
 - Wie die Führungskraft reagiert hat (mit Bezug).
 
-b) Schwierigkeit
-- Warum diese Reaktion es dem Mitarbeiter erleichtert hat,
-  im Einwand zu bleiben oder Verantwortung abzugeben.
-
-c) Wirksamere Variante
-- Kurzes Beispiel entlang von:
+b) Einschätzung der Einwandbehandlung der Führungskraft (ggf. mit Bezug auf die wirksame Variante mit dem Ablauf
   - Bestätigen (Selbstoffenbarung anerkennen)
-  - Argumentation (Realität / Wirkung)
-  - Frage (zur Verantwortung zurückführen)
+  - Argumentation (Realität / Wirkung / eigenes Argument platzieren)
+  - Frage (Nachvollziehbarkeit fragen oder zur Verantwortung zurückführen)
+
 
 --------------------------------------------------
 4) SOG STATT DRUCK – FEINJUSTIERUNG
 --------------------------------------------------
-a) Wo eher Druck entstanden ist
+a) Wo Sog entstanden ist (eventuell, falls vorhanden)
+
+b) Wo vielleicht eher Druck entstanden ist
 - Konkrete Stellen, an denen Aussagen leicht als Forderung,
   Belehrung oder implizite Kritik wirken konnten.
 
-b) Warum das die Überzeugung erschwert
+b) Einschätzung bezogen auf Sog statt Druck
 - Kurz und dialognah (keine Theorie).
 
 c) Wie dort mehr Sog entstanden wäre
@@ -145,7 +143,7 @@ a) Beobachtung
 - Stellen, an denen Verantwortung beim Mitarbeiter blieb
   – und Stellen, an denen sie unabsichtlich zur Führungskraft zurückwanderte.
 
-b) Warum das im Gespräch kritisch ist
+b) Was ggf. gut war bzw. warum das ggf. im Gespräch kritisch ist
 - Bezug zur Motivation, Selbstwirksamkeit und Nachhaltigkeit.
 
 c) Zwei wirksame Rückdelegationsfragen für genau diese Situation
