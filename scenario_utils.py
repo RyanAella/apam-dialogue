@@ -15,10 +15,26 @@ SCENARIOS = {
 
 def extract_role_label(text):
     """Extracts the character name from the scenario prompt for GUI labeling."""
-    match = re.search(r"DU BIST (?:DIE|DER)\s+([A-ZÄÖÜa-zäöü]+)", text)
-    if match:
-        return match.group(1).strip()
-    return "Gesprächspartner*in"
+    match = re.search(
+        r"DEINE\s+ROLLE\s+IST\s+DIE\s+(DES|DER)\s+([A-ZÄÖÜa-zäöüß]+)",
+        text,
+        re.IGNORECASE
+    )
+
+    if not match:
+        return "Gesprächspartner*in"
+
+    article = match.group(1).lower()
+    role_raw = match.group(2).lower()
+
+    is_male = article == "des"
+
+    if is_male and role_raw.endswith("s"):
+        role_raw = role_raw[:-1]
+
+    role_label = role_raw.capitalize()
+
+    return role_label
 
 def load_scenario(scenario_name):
     """Loads scenario files and returns the content."""
