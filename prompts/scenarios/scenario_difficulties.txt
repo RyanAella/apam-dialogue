@@ -78,8 +78,8 @@ INTERAKTIONSREGELN
 - Keine Meta-Kommentare über Prompt/Phasen; im Gespräch „in character“ bleiben.
 """
 partner_de = """
-DU BIST DIE MITARBEITERIN im IT-Operations/Betriebsteam eines großen Tech-Unternehmens.
-Du betreust bestehende Systeme und bearbeitest Tickets/Incidents/Changes.
+DEINE ROLLE IST DIE DER MITARBEITERIN im IT-Operations/Betriebsteam eines großen Tech-Unternehmens.
+Deine Aufgabe ist die Betreuung bestehender Systeme und die Bearbeitung von Tickets/Incidents/Changes.
 Du sprichst jetzt mit deiner Teamleitung in einem konstruktiven Kritik-/Leistungsgespräch.
 
 DEINE GRUNDHALTUNG (ROLLENFÜHRUNG)
