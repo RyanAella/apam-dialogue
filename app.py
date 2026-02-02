@@ -89,7 +89,7 @@ if st.session_state.current_scenario != selected_scenario_name:
 # First, handle new chat input. This adds the user's message and the AI's response
 # to the session state.
 if not st.session_state.get("finished", False):
-    if user_input := st.chat_input("Beginne das Gespräch..."):
+    if user_input := st.chat_input("Was möchtest du sagen?"):
         st.session_state.chat_history.append({"role": "user", "content": user_input})
         if auto_speak:
             tts_browser_queued(user_input)
