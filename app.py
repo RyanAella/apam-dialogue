@@ -1,21 +1,35 @@
+# =========================================================
+# Imports
+# =========================================================
 import streamlit as st
 import streamlit.components.v1 as components
 import os
 from dotenv import load_dotenv
 
-# Import utility functions from new modules
+# Project utilities
 from audio_utils import tts_browser, tts_browser_queued, stt_browser
 from scenario_utils import SCENARIOS, load_scenario
-from llm_utils import get_chat_response, get_mentor_feedback
+from llm_utils import get_chat_response, get_mentor_feedback, transcribe_audio_via_groq
 
-# --- INITIAL SETUP ---
+# =========================================================
+# Page config (MUST be first Streamlit command)
+# =========================================================
+st.set_page_config(
+    page_title="SI Dialogue Lab",
+    layout="centered"  # change to "wide" if needed
+)
+
+# =========================================================
+# App setup
+# =========================================================
 load_dotenv()
 model = "gpt-4o"
 
-st.set_page_config(page_title="SI Dialogue Lab", layout="centered")
 st.title("SI Dialogue Lab")
 
-# --- SESSION STATE INITIALIZATION ---
+# =========================================================
+# Session State Initialization
+# =========================================================
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = []
 if "start_stt" not in st.session_state:
@@ -29,9 +43,9 @@ if "current_scenario" not in st.session_state:
 if "briefing_spoken" not in st.session_state:
     st.session_state.briefing_spoken = False
 
-
-
-# --- 1. SIDEBAR: CENTRAL AUDIO CONTROLS ---
+# =========================================================
+# Sidebar
+# =========================================================
 with st.sidebar:
     st.header("Audio Einstellungen")
 
@@ -44,38 +58,26 @@ with st.sidebar:
         components.html(js_code, height=0)
         st.rerun()
 
-    # st.divider()    
-    # st.subheader("Eingabe (Sprechen)")
-    # st.write("Klicken Sie den Button, um die Spracherkennung zu starten.")
-    # if st.button("Jetzt Sprechen", use_container_width=True):
-        # Trigger flag to inject STT JavaScript after the next rerun
-        # st.session_state.start_stt = True
-
-# --- STT TRIGGER ---
-# if st.session_state.get("start_stt", False):
-    # stt_browser()
-    # st.session_state.start_stt = False
-
 # --- 2. DATA LOADING & SCENARIO HANDLING ---
 selected_scenario_name = st.selectbox("Wählen Sie ein Szenario:", list(SCENARIOS.keys()))
 user_instruction, full_ki_logic, ai_display_name, mentor_instructions = load_scenario(selected_scenario_name)
 
-# --- BRIEFING UI SECTION ---
+# =========================================================
+# Scenario Selection & Briefing
+# =========================================================
 st.subheader("Briefing für das Gespräch")
 
 with st.status("📋 Ihre Aufgabenstellung & Szenario-Details", expanded=True, state="complete"):
     st.markdown(user_instruction)
 
-# --- 3. AUTO-READ BRIEFING & SESSION STATE INITIALIZATION ---
-# This block handles the logic for reading the briefing automatically.
-# It runs on every script rerun, checking if the toggle is on and if the
-# briefing for the current scenario has already been read.
 if auto_speak and not st.session_state.briefing_spoken:
     tts_browser(user_instruction)
     st.session_state.briefing_spoken = True
 
+# =========================================================
+# Scenario Change Handling
+# =========================================================
 if st.session_state.current_scenario != selected_scenario_name:
-    # Setup initial chat history with system instructions
     wait_instruction = "\n\nWARTE AUF START: Der User wird das Gespräch eröffnen. Reagiere dann direkt in deiner Rolle."
     
     st.session_state.chat_history = [{"role": "system", "content": full_ki_logic + wait_instruction}]
@@ -85,10 +87,11 @@ if st.session_state.current_scenario != selected_scenario_name:
     st.session_state.briefing_spoken = False # Reset for the new scenario
     st.rerun()
 
-# --- 4. CHAT LOGIC ---
-# First, handle new chat input. This adds the user's message and the AI's response
-# to the session state.
+# =========================================================
+# Chat Handling
+# =========================================================
 if not st.session_state.get("finished", False):
+    # if user_input := st.chat_input(accept_audio=True, placeholder="Was möchtest du sagen?"):
     if user_input := st.chat_input("Was möchtest du sagen?"):
         st.session_state.chat_history.append({"role": "user", "content": user_input})
         if auto_speak:
@@ -104,7 +107,8 @@ if not st.session_state.get("finished", False):
 # Then, display the entire chat history. Because this runs *after* the input
 # logic, it will include the latest messages in the same run.
 if len(st.session_state.chat_history) == 1:
-    st.info(f"**Bereit für das Gespräch.** Eröffnen Sie den Dialog, indem Sie unten eine Nachricht eingeben oder das Mikrofon nutzen.")
+    # st.info(f"**Bereit für das Gespräch.** Eröffnen Sie den Dialog, indem Sie unten eine Nachricht eingeben oder das Mikrofon nutzen.")
+    st.info(f"**Bereit für das Gespräch.** Eröffnen Sie den Dialog, indem Sie unten eine Nachricht eingeben nutzen.")
 
 # Render chat messages
 for i, message in enumerate(st.session_state.chat_history):
