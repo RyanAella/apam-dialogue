@@ -15,7 +15,7 @@ from llm_utils import get_chat_response, get_mentor_feedback, transcribe_audio_v
 # Page config (MUST be first Streamlit command)
 # =========================================================
 st.set_page_config(
-    page_title="SI Dialogue Lab",
+    page_title="Lab für Sozioinformatik: Gesprächstraining",
     layout="centered"  # change to "wide" if needed
 )
 
