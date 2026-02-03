@@ -13,20 +13,22 @@ def parse_meta_block(text):
     Extracts meta information from scenario files.  
     Returns dict and the remaining content.
     """
-    match = re.search(r"### META ###(.*?)###", text, re.DOTALL)
-    if not match:
-        return {}, text
-    
-    meta_block = match.group(1)
-    meta = {}
+    meta_match = re.search(r"### META ###(.*?)### GUI INSTRUCTION ###", text, re.DOTALL)
+    if meta_match:
+        meta_block = meta_match.group(1)
+        meta = {}
 
-    for line in meta_block.splitlines():
-        if ":" in line:
-            key, value = line.split(":", 1)
-            meta[key.strip()] = value.strip()
+        for line in meta_block.splitlines():
+            if ":" in line:
+                key, value = line.split(":", 1)
+                meta[key.strip()] = value.strip()
 
-    # Remove meta block from content
-    content_without_meta = text.replace(match.group(0), "")
+        # Keep everything from GUI INSTRUCTION onwards
+        content_without_meta = text.split("### GUI INSTRUCTION ###", 1)[1]
+        content_without_meta = "### GUI INSTRUCTION ###" + content_without_meta
+    else:
+        # If no META, keep full text
+        content_without_meta = text
 
     return meta, content_without_meta
 
