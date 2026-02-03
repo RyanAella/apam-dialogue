@@ -59,8 +59,20 @@ with st.sidebar:
         st.rerun()
 
 # --- 2. DATA LOADING & SCENARIO HANDLING ---
-selected_scenario_name = st.selectbox("Wählen Sie ein Szenario:", list(SCENARIOS.keys()))
-user_instruction, full_ki_logic, ai_display_name, mentor_instructions = load_scenario(selected_scenario_name)
+scenario_options = sorted(SCENARIOS.keys())
+
+if not scenario_options:
+    st.error("Keine Szenarien im Ordner 'prompts/scenarios' gefunden!")
+    st.stop()
+
+selected_scenario_name = st.selectbox("Wähle ein Szenario:", scenario_options)
+
+# SECURITY CHECK: Check whether the key exists
+if selected_scenario_name in SCENARIOS:
+    user_instruction, full_ki_logic, ai_display_name, mentor_instructions = load_scenario(selected_scenario_name)
+else:
+    st.warning("Szenario wird geladen...")
+    st.rerun()
 
 # =========================================================
 # Scenario Selection & Briefing
