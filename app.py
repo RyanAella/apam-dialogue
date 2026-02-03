@@ -25,7 +25,7 @@ st.set_page_config(
 load_dotenv()
 model = "gpt-4o"
 
-st.title("SI Dialogue Lab")
+st.title("Lab für Sozioinformatik: Gesprächstraining")
 
 # =========================================================
 # Session State Initialization
