@@ -3,12 +3,11 @@
 # =========================================================
 import streamlit as st
 import streamlit.components.v1 as components
-import os
 from dotenv import load_dotenv
 
 # Project utilities
 from audio_utils import tts_browser, tts_browser_queued, stt_browser
-from scenario_utils import SCENARIOS, load_scenario
+from scenario_utils import get_scenarios, load_scenario
 from llm_utils import get_chat_response, get_mentor_feedback, transcribe_audio_via_groq
 
 # =========================================================
@@ -28,20 +27,16 @@ model = "gpt-4o"
 st.title("Lab für Sozioinformatik: Gesprächstraining")
 
 # =========================================================
-# Session State Initialization
+# Session State Defaults
 # =========================================================
-if "chat_history" not in st.session_state:
-    st.session_state.chat_history = []
-if "start_stt" not in st.session_state:
-    st.session_state.start_stt = False
-if "finished" not in st.session_state:
-    st.session_state.finished = False
-if "last_spoken" not in st.session_state:
-    st.session_state.last_spoken = None
-if "current_scenario" not in st.session_state:
-    st.session_state.current_scenario = None
-if "briefing_spoken" not in st.session_state:
-    st.session_state.briefing_spoken = False
+defaults = {
+    "chat_history": [],
+    "finished": False,
+    "current_scenario": None,
+    "briefing_spoken": False,
+}
+for k, v in defaults.items():
+    st.session_state.setdefault(k, v)
 
 # =========================================================
 # Sidebar
@@ -58,13 +53,16 @@ with st.sidebar:
         components.html(js_code, height=0)
         st.rerun()
 
-# --- 2. DATA LOADING & SCENARIO HANDLING ---
-scenario_options = sorted([s["ui_title"] for s in SCENARIOS.values()])
+# =========================================================
+# Scenario Selection
+# =========================================================
+SCENARIOS = get_scenarios()
 
-if not scenario_options:
-    st.error("Keine Szenarien im Ordner 'prompts/scenarios' gefunden!")
+if not SCENARIOS:
+    st.error("Keine Szenarien gefunden.")
     st.stop()
 
+scenario_options = sorted([s["ui_title"] for s in SCENARIOS.values()])
 selected_ui_title = st.selectbox("Wähle ein Szenario:", scenario_options)
 
 # --- Find the internal key for the selected title ---
@@ -73,33 +71,43 @@ internal_key = next(
     key for key, val in SCENARIOS.items() if val["ui_title"] == selected_ui_title
 )
 
-# Load scenario
-user_instruction, full_ki_logic, ai_display_name, mentor_instructions = load_scenario(internal_key)
-
-# =========================================================
-# Scenario Selection & Briefing
-# =========================================================
-st.subheader("Briefing für das Gespräch")
-
-with st.status("📋 Deine Aufgabenstellung & Szenario-Details", expanded=True, state="complete"):
-    st.markdown(user_instruction)
-
-if auto_speak and not st.session_state.briefing_spoken:
-    tts_browser(user_instruction)
-    st.session_state.briefing_spoken = True
-
 # =========================================================
 # Scenario Change Handling
 # =========================================================
 if st.session_state.current_scenario != internal_key:
-    wait_instruction = "\n\nWARTE AUF START: Der User wird das Gespräch eröffnen. Reagiere dann direkt in deiner Rolle."
-    
-    st.session_state.chat_history = [{"role": "system", "content": full_ki_logic + wait_instruction}]
+    (
+        user_instruction,
+        full_ki_logic,
+        ai_display_name,
+        mentor_instructions,
+    ) = load_scenario(internal_key, SCENARIOS)
+
+    st.session_state.chat_history = [{
+        "role": "system",
+        "content": full_ki_logic
+        + "\n\nWARTE AUF START: Der User eröffnet das Gespräch."
+    }]
     st.session_state.finished = False
-    st.session_state.last_spoken = None # Reset Audio-History
     st.session_state.current_scenario = internal_key
-    st.session_state.briefing_spoken = False # Reset for the new scenario
+    st.session_state.briefing_spoken = False
+
+    st.session_state.user_instruction = user_instruction
+    st.session_state.ai_display_name = ai_display_name
+    st.session_state.mentor_instructions = mentor_instructions
+
     st.rerun()
+
+# =========================================================
+# Scenario Briefing
+# =========================================================
+st.subheader("Briefing für das Gespräch")
+
+with st.status("📋 Deine Aufgabenstellung & Szenario-Details", expanded=True, state="complete"):
+    st.markdown(st.session_state.user_instruction)
+
+if auto_speak and not st.session_state.briefing_spoken:
+    tts_browser(st.session_state.user_instruction)
+    st.session_state.briefing_spoken = True
 
 # =========================================================
 # Chat Handling
@@ -122,14 +130,14 @@ if not st.session_state.get("finished", False):
 # logic, it will include the latest messages in the same run.
 if len(st.session_state.chat_history) == 1:
     # st.info(f"**Bereit für das Gespräch.** Eröffnen Sie den Dialog, indem Sie unten eine Nachricht eingeben oder das Mikrofon nutzen.")
-    st.info(f"**Bereit für das Gespräch.** Eröffnen Sie den Dialog, indem Sie unten eine Nachricht eingeben nutzen.")
+    st.info(f"**Bereit für das Gespräch.** Eröffnen Sie den Dialog, indem Sie unten eine Nachricht eingeben.")
 
-# Render chat messages
-for i, message in enumerate(st.session_state.chat_history):
-    if message["role"] != "system":
-        label = "Du" if message["role"] == "user" else ai_display_name
-        with st.chat_message(message["role"]):
-            st.write(f"**{label}:** {message['content']}")
+for msg in st.session_state.chat_history:
+    if msg["role"] == "system":
+        continue
+    label = "Du" if msg["role"] == "user" else st.session_state.ai_display_name
+    with st.chat_message(msg["role"]):
+        st.write(f"**{label}:** {msg['content']}")
 
 # --- 6. END SESSION & ANALYSIS ---
 st.divider()
@@ -139,7 +147,8 @@ if not is_finished:
     col1, col2 = st.columns(2)
     with col1:
         if st.button("Gespräch zurücksetzen", use_container_width=True):
-            del st.session_state.chat_history
+            st.session_state.chat_history = st.session_state.chat_history[:1]
+            st.session_state.finished = False
             st.rerun()
     with col2:
         if st.button("Beenden & Feedback erhalten", type="primary", use_container_width=True):
@@ -159,7 +168,7 @@ else:
     # Fetch AI analysis if not already stored
     if "mentor_feedback" not in st.session_state:
         with st.spinner("Analysiere das Gespräch..."):
-            feedback = get_mentor_feedback(model, mentor_instructions, st.session_state.chat_history, ai_display_name)
+            feedback = get_mentor_feedback(model, st.session_state.mentor_instructions, st.session_state.chat_history, st.session_state.ai_display_name)
             if feedback:
                 st.session_state.mentor_feedback = feedback
                 # Auto-read feedback if activated

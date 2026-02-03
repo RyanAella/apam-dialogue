@@ -34,7 +34,7 @@ def parse_meta_block(text):
 
 
 # --- Automatically discover scenarios ---
-def discover_scenarios():
+def _discover_scenarios():
     """
     Loads all scenarios and returns a dict:  
     key = meta title (fallback filename)  
@@ -77,11 +77,14 @@ def discover_scenarios():
     return scenarios
 
 
-SCENARIOS = discover_scenarios()
+@st.cache_data
+def get_scenarios():
+    """Cached scenario discovery (no import-time side effects)."""
+    return _discover_scenarios()
 
 
 # --- Extract role label (robust, multi-word) ---
-def extract_role_label(text):
+def extract_role_label(text: str) -> str:
     """
     Extract the role of AI from the scenario text.  
     Example:  
@@ -111,15 +114,15 @@ def extract_role_label(text):
 
 
 # --- Load Szenario on-demand ---
-def load_scenario(internal_key):
-    selected_files = SCENARIOS.get(internal_key)
+def load_scenario(internal_key: str, scenarios: dict):
+    selected = scenarios.get(internal_key)
     
-    if not selected_files:
+    if not selected:
         st.error("Szenario nicht gefunden.")
         st.stop()
 
-    scenario_path = selected_files["scenario_path"]
-    analysis_path = selected_files["analysis_path"]
+    scenario_path = selected["scenario_path"]
+    analysis_path = selected["analysis_path"]
 
     # Load scenario file
     try:
@@ -130,7 +133,7 @@ def load_scenario(internal_key):
         st.stop()
 
     # --- Remove META ---
-    meta, content_wo_meta = parse_meta_block(raw_content)
+    _, content_wo_meta = parse_meta_block(raw_content)
 
     # Determine role name
     ai_display_name = "Gesprächspartner*in"

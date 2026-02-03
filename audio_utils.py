@@ -1,4 +1,3 @@
-from email.mime import text
 import streamlit.components.v1 as components
 import json
 import re
@@ -51,23 +50,18 @@ def tts_browser_queued(text: str):
 
         function speakNext() {{
             if (window.__ttsSpeaking || window.__ttsQueue.length === 0) return;
-
             window.__ttsSpeaking = true;
             const text = window.__ttsQueue.shift();
-
             const msg = new SpeechSynthesisUtterance(text);
             msg.lang = 'de-DE';
-
             msg.onend = function() {{
                 window.__ttsSpeaking = false;
                 speakNext();
             }};
-
             msg.onerror = function() {{
                 window.__ttsSpeaking = false;
                 speakNext();
             }};
-
             window.speechSynthesis.speak(msg);
         }}
 
@@ -79,7 +73,7 @@ def tts_browser_queued(text: str):
     components.html(js_code, height=0)
 
 
-def tts_browser_immediate(text: str):
+def tts_browser(text: str):
     """
     Cancels all speech and speaks immediately (hard interrupt).
     """
