@@ -15,7 +15,7 @@ from llm_utils import get_chat_response, get_mentor_feedback, transcribe_audio_v
 # Page config (MUST be first Streamlit command)
 # =========================================================
 st.set_page_config(
-    page_title="SI Dialogue Lab",
+    page_title="Lab für Sozioinformatik: Gesprächstraining",
     layout="centered"  # change to "wide" if needed
 )
 
@@ -25,7 +25,7 @@ st.set_page_config(
 load_dotenv()
 model = "gpt-4o"
 
-st.title("SI Dialogue Lab")
+st.title("Lab für Sozioinformatik: Gesprächstraining")
 
 # =========================================================
 # Session State Initialization
@@ -81,7 +81,7 @@ user_instruction, full_ki_logic, ai_display_name, mentor_instructions = load_sce
 # =========================================================
 st.subheader("Briefing für das Gespräch")
 
-with st.status("📋 Ihre Aufgabenstellung & Szenario-Details", expanded=True, state="complete"):
+with st.status("📋 Deine Aufgabenstellung & Szenario-Details", expanded=True, state="complete"):
     st.markdown(user_instruction)
 
 if auto_speak and not st.session_state.briefing_spoken:
@@ -91,13 +91,13 @@ if auto_speak and not st.session_state.briefing_spoken:
 # =========================================================
 # Scenario Change Handling
 # =========================================================
-if st.session_state.current_scenario != selected_scenario_name:
+if st.session_state.current_scenario != internal_key:
     wait_instruction = "\n\nWARTE AUF START: Der User wird das Gespräch eröffnen. Reagiere dann direkt in deiner Rolle."
     
     st.session_state.chat_history = [{"role": "system", "content": full_ki_logic + wait_instruction}]
     st.session_state.finished = False
     st.session_state.last_spoken = None # Reset Audio-History
-    st.session_state.current_scenario = selected_scenario_name
+    st.session_state.current_scenario = internal_key
     st.session_state.briefing_spoken = False # Reset for the new scenario
     st.rerun()
 
@@ -177,7 +177,7 @@ else:
             st.download_button(
                 label="Protokoll & Feedback herunterladen",
                 data=full_export,
-                file_name=f"Dialog_Lab_{selected_scenario_name}.txt",
+                file_name=f"Dialog_Lab_{internal_key}.txt",
                 mime="text/plain",
                 use_container_width=True
             )

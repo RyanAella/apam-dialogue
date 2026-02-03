@@ -1,48 +1,101 @@
+from email.mime import text
 import streamlit.components.v1 as components
 import json
 import re
 
 def format_for_tts(text: str) -> str:
-    # Remove Markdown links, keeping the link text
+    """
+    Cleans text for browser TTS (Markdown, lists, headings, whitespace).
+    """
+    if not text:
+        return ""
+
+    # Remove Markdown links, keep link text
     text = re.sub(r'\[([^\]]+)\]\([^\)]+\)', r'\1', text)
-    
-    # Remove Markdown images, keeping the alt text
+    # Remove Markdown images, keep alt text
     text = re.sub(r'!\[([^\]]+)\]\([^\)]+\)', r'\1', text)
-
-    # Remove Markdown formatting for bold, italic, and code
+    # Remove bold, italic, inline code
     text = re.sub(r'(\*\*|__|\*|_|`)', '', text)
-    
-    # Remove heading symbols
+    # Remove heading symbols (#)
     text = re.sub(r'^\s*#+\s*', '', text, flags=re.MULTILINE)
-
-    # Listen / Aufzählungen
+    # Convert list items to sentences
     text = re.sub(r"\n\s*[-•]\s*", ". ", text)
-
-    # Absatzumbrüche → deutliche Pause
+    # Paragraph breaks → longer pause
     text = re.sub(r"\n{2,}", ". ", text)
-
-    # Einzelne Zeilenumbrüche → kurze Pause
+    # Single line breaks → short pause
     text = text.replace("\n", " ")
-
-    # Whitespace normalisieren
+    # Normalize whitespace
     text = re.sub(r"\s+", " ", text)
 
     return text.strip()
 
-def tts_browser(text):
-    """Uses Web Speech API to read text. Cleans strings for JS compatibility."""
+
+def tts_browser_queued(text: str):
+    """
+    Adds text to a global browser TTS queue.
+    Texts are spoken sequentially without overlap.
+    """
     if not text:
         return
-    
-    tts_text = format_for_tts(text)
 
-    clean_text = json.dumps(tts_text)
+    clean_text = json.dumps(format_for_tts(text))
 
     js_code = f"""
     <script>
     (function() {{
-        window.speechSynthesis.cancel(); 
-        var msg = new SpeechSynthesisUtterance({clean_text});
+        // Initialize global queue once
+        if (!window.__ttsQueue) {{
+            window.__ttsQueue = [];
+            window.__ttsSpeaking = false;
+        }}
+
+        function speakNext() {{
+            if (window.__ttsSpeaking || window.__ttsQueue.length === 0) return;
+
+            window.__ttsSpeaking = true;
+            const text = window.__ttsQueue.shift();
+
+            const msg = new SpeechSynthesisUtterance(text);
+            msg.lang = 'de-DE';
+
+            msg.onend = function() {{
+                window.__ttsSpeaking = false;
+                speakNext();
+            }};
+
+            msg.onerror = function() {{
+                window.__ttsSpeaking = false;
+                speakNext();
+            }};
+
+            window.speechSynthesis.speak(msg);
+        }}
+
+        window.__ttsQueue.push({clean_text});
+        speakNext();
+    }})();
+    </script>
+    """
+    components.html(js_code, height=0)
+
+
+def tts_browser_immediate(text: str):
+    """
+    Cancels all speech and speaks immediately (hard interrupt).
+    """
+    if not text:
+        return
+
+    clean_text = json.dumps(format_for_tts(text))
+
+    js_code = f"""
+    <script>
+    (function() {{
+        window.speechSynthesis.cancel();
+        window.__ttsQueue = [];
+        window.__ttsSpeaking = false;
+
+        const msg = new SpeechSynthesisUtterance({clean_text});
         msg.lang = 'de-DE';
         window.speechSynthesis.speak(msg);
     }})();
@@ -50,35 +103,22 @@ def tts_browser(text):
     """
     components.html(js_code, height=0)
 
-def tts_browser_queued(text):
-    """Uses Web Speech API to read text, queuing it after any ongoing speech."""
-    if not text:
-        return
-
-    tts_text = format_for_tts(text)
-    clean_text = json.dumps(tts_text)
-
-    js_code = f"""
-    <script>
-    (function() {{
-        var msg = new SpeechSynthesisUtterance({clean_text});
-        msg.lang = 'de-DE';
-        window.speechSynthesis.speak(msg);
-    }})();
-    </script>
-    """
-    components.html(js_code, height=0)
 
 def stop_browser_speech():
-    """Immediately halts the browser's speech synthesis engine."""
+    """
+    Stops all queued and active speech immediately.
+    """
     js_code = """
     <script>
-    window.speechSynthesis.cancel();
+        window.speechSynthesis.cancel();
+        window.__ttsQueue = [];
+        window.__ttsSpeaking = false;
     </script>
     """
     components.html(js_code, height=0)
 
-def stt_browser():
+
+def stt_browser(widget_id="chat_input"):
     """
     Triggers the browser's SpeechRecognition API.
     Captures audio, sends it to the hidden Streamlit widget, and auto-submits the form.
@@ -93,11 +133,13 @@ def stt_browser():
     recognition.onresult = function(event) {{
         var transcript = event.results[0][0].transcript;
 
+        // Send transcript to Streamlit widget
         window.parent.postMessage({{
             type: 'streamlit:set_widget_value',
-            data: {{ value: transcript, widgetId: 'chat_input' }}
+            data: {{ value: transcript, widgetId: '{widget_id}' }}
         }}, '*');
 
+        // Auto-insert into textarea (if exists) and submit
         setTimeout(function() {{
             const textArea = window.parent.document.querySelector('textarea[data-testid="stChatInputTextArea"]');
             if (textArea) {{
@@ -110,6 +152,9 @@ def stt_browser():
                 textArea.dispatchEvent(enterEvent);
             }}
         }}, 300);
+    }};
+    recognition.onerror = function(event) {{
+        console.warn('STT Error:', event.error);
     }};
     </script>
     """
