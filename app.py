@@ -81,7 +81,7 @@ user_instruction, full_ki_logic, ai_display_name, mentor_instructions = load_sce
 # =========================================================
 st.subheader("Briefing für das Gespräch")
 
-with st.status("📋 Ihre Aufgabenstellung & Szenario-Details", expanded=True, state="complete"):
+with st.status("📋 Deine Aufgabenstellung & Szenario-Details", expanded=True, state="complete"):
     st.markdown(user_instruction)
 
 if auto_speak and not st.session_state.briefing_spoken:
