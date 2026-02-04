@@ -162,7 +162,7 @@ else:
     chat_transcript_text = "GESPRÄCHSPROTOKOLL\n" + "="*20 + "\n"
     for m in st.session_state.chat_history:
         if m["role"] != "system":
-            label = "Du" if m["role"] == "user" else ai_display_name
+            label = "Du" if m["role"] == "user" else st.session_state.ai_display_name
             chat_transcript_text += f"{label}: {m['content']}\n\n"
 
     # Fetch AI analysis if not already stored
