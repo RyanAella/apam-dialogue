@@ -48,30 +48,25 @@ def get_chat_response(model, history):
         return "Fehler bei der Generierung der Antwort."
 
 
-def get_mentor_feedback(model, instructions, chat_history, ai_display_name):
-    """Get mentor feedback from OpenAI based on chat transcript."""
+def get_mentor_feedback(model: str, messages: list) -> str:
+    """Get mentor feedback from OpenAI based on prepared messages."""
     if not client:
         return "OpenAI Client ist nicht initialisiert."
+
     try:
-        # Filter system messages
-        chat_transcript_list = [m for m in chat_history if m["role"] != "system"]
-        # Format transcript nicely for GPT
-        formatted_transcript = json.dumps(chat_transcript_list, indent=2, ensure_ascii=False)
-
-        mentor_request = [
-            {"role": "system", "content": instructions},
-            {"role": "system", "content": f"Gesprächsprotokoll:\n{formatted_transcript}"}
-        ]
-
-        response = client.chat.completions.create(model=model, messages=mentor_request)
-        return response.choices[0].message.content
+        response = client.chat.completions.create(
+            model=model,
+            messages=messages,
+            temperature=0.3,
+        )
+        return response.choices[0].message.content.strip()
 
     except Exception as e:
-        st.error(f"Fehler bei der Analyse durch OpenAI API: {e}")
+        st.error(f"Fehler bei der Mentor-Analyse: {e}")
         return "Fehler bei der Mentor-Analyse."
+
     
-# --- 3. AUDIO TRANSCRIPTION ---
-    
+# --- 3. AUDIO TRANSCRIPTION ---    
 def transcribe_audio_via_groq(audio_bytes):
     """Transcribe audio using Groq Whisper. Returns string text."""
     if not groq_client:
