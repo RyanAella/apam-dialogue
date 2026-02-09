@@ -2,76 +2,115 @@ import os
 import re
 import streamlit as st
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-PROMPTS_DIR = os.path.join(BASE_DIR, "prompts")
-SCENARIO_DIR = os.path.join(PROMPTS_DIR, "scenarios")
-ANALYSIS_DIR = os.path.join(PROMPTS_DIR, "analysis")
+PROMPTS_DIR = os.path.join(os.path.dirname(__file__), "prompts")
+SCENARIOS_DIR = os.path.join(os.path.dirname(__file__), "scenarios")
 
-# --- Parse META block from scenario file ---
-def parse_meta_block(text):
-    """
-    Extracts meta information from scenario files.  
-    Returns dict and the remaining content.
-    """
-    meta_match = re.search(r"### META ###(.*?)### GUI INSTRUCTION ###", text, re.DOTALL)
-    if meta_match:
-        meta_block = meta_match.group(1)
-        meta = {}
 
+# =====================================================
+# Prompt Loader
+# =====================================================
+def load_prompt(folder: str, name: str) -> str:
+    """
+    folder: system | partner | mentor
+    name: filename without .txt
+    """
+    path = os.path.join(PROMPTS_DIR, folder, f"{name}.txt")
+    if not os.path.isfile(path):
+        raise FileNotFoundError(f"Prompt nicht gefunden: {path}")
+    
+    with open(path, "r", encoding="utf-8") as f:
+        return f.read()
+    
+
+# =====================================================
+# META + GUI INSTRUCTION Parsing
+# =====================================================
+def parse_meta_block(text: str) -> tuple[dict, str]:
+    """
+    Returns:
+    - meta dict
+    - GUI instruction text (everything AFTER ### GUI INSTRUCTION ###)
+    """
+    meta = {}
+    
+    match = re.search(r"### META ###(.*?)### GUI INSTRUCTION ###", text, re.DOTALL)
+    
+    if match:
+        meta_block = match.group(1)
         for line in meta_block.splitlines():
             if ":" in line:
                 key, value = line.split(":", 1)
                 meta[key.strip()] = value.strip()
 
-        # Keep everything from GUI INSTRUCTION onwards
-        content_without_meta = text.split("### GUI INSTRUCTION ###", 1)[1]
-        content_without_meta = "### GUI INSTRUCTION ###" + content_without_meta
+        gui_text = text.split("### GUI INSTRUCTION ###", 1)[1].strip()
     else:
-        # If no META, keep full text
-        content_without_meta = text
+        gui_text = text.strip()
 
-    return meta, content_without_meta
+    return meta, gui_text
+    
+
+# =====================================================
+# Scenario META Loader
+# =====================================================
+def load_scenario_meta(scenario_key: str) -> dict:
+    path = os.path.join(SCENARIOS_DIR, f"{scenario_key}.txt")
+    if not os.path.isfile(path):
+        raise FileNotFoundError(f"Szenario nicht gefunden: {path}")
+
+    with open(path, "r", encoding="utf-8") as f:
+        meta, _ = parse_meta_block(f.read())
+    return meta
+    
+
+# =====================================================
+# Scenario Prompt Loader
+# =====================================================
+def load_scenario_prompts(scenario_key: str) -> dict:
+    meta = load_scenario_meta(scenario_key)
+
+    return {
+        "title": meta.get("title", scenario_key),
+        "system": load_prompt("system", meta["system_prompt"]),
+        "partner": load_prompt("partner", meta["partner_prompt"]),
+        "mentor": load_prompt("mentor", meta["mentor_prompt"])
+    }
 
 
-# --- Automatically discover scenarios ---
+# =====================================================
+# Mentor Message Assembly
+# =====================================================
+def assemble_mentor_messages(mentor_prompt: str, chat_messages: list) -> list:
+    transcript = "\n".join(
+        f"{m['role']}: {m['content']}" 
+        for m in chat_messages 
+        if m['role'] != "system"
+    )
+
+    return [
+        {"role": "system", "content": mentor_prompt},
+        {"role": "user", "content": transcript}
+    ]
+
+
+# =====================================================
+# Scenario Discovery
+# =====================================================
 def _discover_scenarios():
-    """
-    Loads all scenarios and returns a dict:  
-    key = meta title (fallback filename)  
-    value = dict with paths to scenario and analysis file
-    """
     scenarios = {}
 
-    for filename in os.listdir(SCENARIO_DIR):
-        if not filename.startswith("scenario_") or not filename.endswith(".txt"):
+    for filename in os.listdir(SCENARIOS_DIR):
+        if not filename.endswith("_scenario.txt"):
             continue
 
-        scenario_path = os.path.join(SCENARIO_DIR, filename)
+        scenario_key = filename.replace(".txt", "")
+        path = os.path.join(SCENARIOS_DIR, filename)
 
-        # --- Read meta from file ---
-        try:
-            with open(scenario_path, "r", encoding="utf-8") as f:
-                raw_content = f.read()
-        except FileNotFoundError:
-            st.warning(f"Szenario-Datei nicht gefunden: {filename}")
-            continue
+        with open(path, "r", encoding="utf-8") as f:
+            meta, _ = parse_meta_block(f.read())
 
-        meta, _ = parse_meta_block(raw_content)
-        ui_title = meta.get("title", filename.replace("scenario_", "").replace(".txt", "").title())
-
-        # Specify analysis file
-        base_name = filename.removeprefix("scenario_")
-        analysis_file = f"analyze_{base_name}"
-        analysis_path = os.path.join(ANALYSIS_DIR, analysis_file)
-        if not os.path.isfile(analysis_path):
-            st.warning(f"Analyse fehlt für {filename}")
-            analysis_path = None
-
-        internal_key = f"{ui_title}::{filename}"
-        scenarios[internal_key] = {
-            "scenario_path": scenario_path,
-            "analysis_path": analysis_path,
-            "ui_title": ui_title
+        scenarios[scenario_key] = {
+            "ui_title": meta.get("title", scenario_key),
+            "path": path,
         }
 
     return scenarios
@@ -83,7 +122,9 @@ def get_scenarios():
     return _discover_scenarios()
 
 
-# --- Extract role label (robust, multi-word) ---
+# =====================================================
+# Role Label Extraction
+# =====================================================
 def extract_role_label(text: str) -> str:
     """
     Extract the role of AI from the scenario text.  
@@ -104,55 +145,10 @@ def extract_role_label(text: str) -> str:
     role_raw = match.group(2).strip().lower()
 
     # only take the role stem (cut off everything after the first “in”)
-    role_raw = re.split(r"\s+im\s+|\s+in\s+", role_raw, maxsplit=1)[0]
+    role = re.split(r"\s+im\s+|\s+in\s+", role_raw, 1)[0]
 
     # masculine genitive → nominative
-    if article == "des" and role_raw.endswith("s"):
-        role_raw = role_raw[:-1]
+    if article == "des" and role.endswith("s"):
+        role = role[:-1]
 
-    return role_raw.capitalize()
-
-
-# --- Load Szenario on-demand ---
-def load_scenario(internal_key: str, scenarios: dict):
-    selected = scenarios.get(internal_key)
-    
-    if not selected:
-        st.error("Szenario nicht gefunden.")
-        st.stop()
-
-    scenario_path = selected["scenario_path"]
-    analysis_path = selected["analysis_path"]
-
-    # Load scenario file
-    try:
-        with open(scenario_path, "r", encoding="utf-8") as f:
-            raw_content = f.read()
-    except FileNotFoundError:
-        st.error(f"Szenario-Datei nicht gefunden: {scenario_path}")
-        st.stop()
-
-    # --- Remove META ---
-    _, content_wo_meta = parse_meta_block(raw_content)
-
-    # Determine role name
-    ai_display_name = "Gesprächspartner*in"
-    if "partner_de =" in content_wo_meta:
-        role_part = content_wo_meta.split("partner_de =", 1)[1]
-        ai_display_name = extract_role_label(role_part)
-
-    # Split SYSTEM PROMPT
-    parts = content_wo_meta.split("### SYSTEM PROMPT ###", 1)
-    user_instruction = parts[0].replace("### GUI INSTRUCTION ###", "").strip()
-    full_ki_logic = parts[1].strip() if len(parts) > 1 else ""
-
-    # Analysis file
-    mentor_instructions = ""
-    if analysis_path:
-        try:
-            with open(analysis_path, "r", encoding="utf-8") as f:
-                mentor_instructions = f.read()
-        except FileNotFoundError:
-            st.warning(f"Analyse-Datei nicht gefunden: {analysis_path}")
-
-    return user_instruction, full_ki_logic, ai_display_name, mentor_instructions
+    return role.capitalize()

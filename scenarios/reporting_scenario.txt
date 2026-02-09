@@ -1,0 +1,18 @@
+### META ###
+title: Verspätungen beim Reporting  
+system_prompt: reporting_system_prompt 
+partner_prompt: reporting_partner_prompt 
+mentor_prompt: reporting_mentor_prompt 
+
+### GUI INSTRUCTION ###
+**Instruktion**  
+Nutze die folgenden Informationen, um ein Gespräch mit einem Mitglied aus Deinem Team zu führen.
+
+**Hintergrund**  
+Du bist Führungskraft in der Controllingabteilung eines mittelständischen Unternehmens. Zu Deinem Aufgabengebiet gehört das Reporting. Du hast einen Mitarbeiter in Deinem Team, der für das monatliche Reporting verantwortlich ist.  
+Das monatliche Reporting hat aktuell eine hohe Relevanz, da es nicht nur von der Verkaufsleitung, sondern regelmäßig auch von der Geschäftsführung genutzt wird. In der derzeit kritischen wirtschaftlichen Lage fließen die Zahlen direkt in Entscheidungen zur Steuerung des Unternehmens ein.  
+In den letzten beiden Monaten kam das Reporting jeweils 1–2 Tage zu spät. Zudem enthielt es kleinere formale Fehler, die kurz vor der Abgabe von dir als Führungskraft korrigiert werden mussten.  
+Auch wenn die einzelnen Punkte für sich genommen nicht dramatisch sind, entsteht in Summe zusätzlicher Aufwand und Unsicherheit auf Leitungsebene. Als Führungskraft ist es deshalb wichtig, jetzt klar zu intervenieren, Erwartungen deutlich zu machen und Verantwortung verbindlich zu klären.  
+
+**Deine Aufgabe**  
+Führe ein konstruktives Kritikgespräch mit einem Mitarbeitenden, um Termintreue und Sorgfalt beim monatlichen Reporting verbindlich zu klären. Ziel ist, dass der Mitarbeitende die Bedeutung der Aufgabe erkennt, selbst tragfähige Lösungen entwickelt und sich klar zu konkreten nächsten Schritten committet.  
