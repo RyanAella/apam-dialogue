@@ -117,7 +117,7 @@ def _discover_scenarios():
 
 
 @st.cache_data
-def get_scenarios():
+def get_scenarios(folder_mtime: float):
     """Cached scenario discovery (no import-time side effects)."""
     return _discover_scenarios()
 

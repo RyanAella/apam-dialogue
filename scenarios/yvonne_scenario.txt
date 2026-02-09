@@ -1,0 +1,17 @@
+### META ###
+title: Yvonne (Placeholder) 
+system_prompt: yvonne_system_prompt 
+partner_prompt: yvonne_partner_prompt 
+mentor_prompt: yvonne_mentor_prompt 
+
+### GUI INSTRUCTION ###
+**Instruktion**  
+Nutze die folgenden Informationen, um ein Gespräch mit einem Mitglied aus Deinem Team zu führen.
+
+**Hintergrund**  
+Du bist Führungskraft in der IT-Abteilung eines großen Tech-Unternehmens. Dein Team ist für den Betrieb und die Betreuung bestehender IT-Systeme verantwortlich. Dazu gehören die Bearbeitung von Tickets und Incidents sowie die Sicherstellung stabiler und verlässlicher Services.  
+Eine Aufgabe im laufenden Betrieb wurde von einer Mitarbeiterin nicht weiterbearbeitet, weil sie unsicher war, wie sie vorgehen soll. Sie hat diese Unsicherheit jedoch nicht frühzeitig kommuniziert oder eskaliert. Dadurch wurde Zeit verloren und eine Lösung verzögert.  
+Im IT-Betrieb ist es entscheidend, Blockaden früh sichtbar zu machen, damit gemeinsam schnell Lösungen gefunden und Risiken für den Betrieb minimiert werden können.  
+
+**Deine Aufgabe**  
+Führe ein konstruktives Kritikgespräch mit der Mitarbeiterin, um deutlich zu machen, dass frühzeitiges Melden von Unsicherheit oder Blockaden ein erwarteter und professioneller Teil der Arbeit ist. Ziel ist, dass die Mitarbeiterin die Bedeutung dieses Verhaltens erkennt, eigene praktikable Lösungen entwickelt und sich verbindlich zu konkreten nächsten Schritten committet.

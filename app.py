@@ -1,6 +1,7 @@
 # =========================================================
 # Imports
 # =========================================================
+import os
 import streamlit as st
 import streamlit.components.v1 as components
 from dotenv import load_dotenv
@@ -23,7 +24,7 @@ from scenario_utils import (
 # =========================================================
 st.set_page_config(
     page_title="Lab für Sozioinformatik: Gesprächstraining",
-    layout="centered"  # change to "wide" if needed
+    layout="wide"  # change to "centered" if needed
 )
 
 
@@ -70,7 +71,9 @@ with st.sidebar:
 # =========================================================
 # Scenario Selection
 # =========================================================
-SCENARIOS = get_scenarios()
+SCENARIOS = get_scenarios(
+    os.stat("scenarios").st_mtime
+)
 
 titles = [v["ui_title"] for v in SCENARIOS.values()]
 selected_title = st.selectbox("Wähle ein Szenario:", titles)
@@ -152,7 +155,7 @@ for msg in st.session_state.chat_history:
         continue
 
     label = "Du" if msg["role"] == "user" else st.session_state.ai_display_name
-    
+
     if msg["role"] == "user":
         bg_color = "#2A3E5B" if is_dark_mode else "#D1E8FF"
         text_color = "#FFFFFF" if is_dark_mode else "#000000"
