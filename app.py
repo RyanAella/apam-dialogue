@@ -145,18 +145,30 @@ if len(st.session_state.chat_history) == 1:
     # st.info(f"**Bereit für das Gespräch.** Eröffnen Sie den Dialog, indem Sie unten eine Nachricht eingeben oder das Mikrofon nutzen.")
     st.info(f"**Bereit für das Gespräch.** Eröffnen Sie den Dialog, indem Sie unten eine Nachricht eingeben.")
 
+is_dark_mode = st.get_option("theme.base") == "dark"
+
 for msg in st.session_state.chat_history:
     if msg["role"] == "system":
         continue
 
-    label = (
-        "Du"
-        if msg["role"] == "user"
-        else st.session_state.ai_display_name
-    )
+    label = "Du" if msg["role"] == "user" else st.session_state.ai_display_name
+    
+    if msg["role"] == "user":
+        bg_color = "#2A3E5B" if is_dark_mode else "#D1E8FF"
+        text_color = "#FFFFFF" if is_dark_mode else "#000000"
+    else:
+        bg_color = "#3C3C3C" if is_dark_mode else "#F0F0F0"
+        text_color = "#FFFFFF" if is_dark_mode else "#000000"
 
-    with st.chat_message(msg["role"]):
-        st.markdown(f"**{label}:** {msg['content']}")
+    st.markdown(
+        f"""
+        <div style='background-color:{bg_color}; color:{text_color};
+                    padding:10px; border-radius:12px; margin-bottom:5px'>
+            <b>{label}:</b> {msg['content']}
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
 
 
 # =====================================================
