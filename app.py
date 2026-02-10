@@ -228,7 +228,7 @@ if not st.session_state.finished:
     col1, col2 = st.columns(2)
 
     with col1:
-        if st.button("Gespräch zurücksetzen", use_container_width=True):
+        if st.button("Gespräch zurücksetzen", type="secondary", use_container_width=True):
             st.session_state.chat_history = st.session_state.chat_history[:2]
             st.session_state.finished = False
             st.rerun()
@@ -302,9 +302,8 @@ else:
                 use_container_width=True
             )
 
-
         with col_down2:
-            if st.button("Neues Gespräch beginnen", use_container_width=True):
+            if st.button("Neues Gespräch beginnen", use_container_width=True, type="primary"):
                 for key in [
                     "chat_history",
                     "finished",
