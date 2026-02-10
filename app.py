@@ -204,8 +204,14 @@ for msg in st.session_state.chat_history:
 
     st.markdown(
         f"""
-        <div style='background-color:{bg_color}; color:{text_color};
-                    padding:10px; border-radius:12px; margin-bottom:5px'>
+        <div style='
+            background-color:{bg_color};
+            color:{text_color};
+            padding:12px 16px;
+            border-radius:18px;
+            margin-bottom:8px;
+            box-shadow: 0px 2px 6px rgba(0,0,0,0.2);
+        '>
             <b>{label}:</b> {msg['content']}
         </div>
         """,
