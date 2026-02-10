@@ -19,6 +19,29 @@ from scenario_utils import (
 )
 
 
+def normalize_chat_input(chat_input):
+    """
+    Normalisiert Streamlit chat_input (Text / Audio / Mixed)
+    zu einem reinen String für LLM-Verarbeitung.
+    """
+    if not chat_input:
+        return None
+
+    # Reiner Text
+    if isinstance(chat_input, str):
+        text = chat_input.strip()
+        return text if text else None
+
+    # Audio (Streamlit ChatInputValue)
+    if hasattr(chat_input, "audio") and chat_input.audio:
+        return transcribe_audio_via_groq(chat_input.audio)
+
+    # Fallback: Textfeld bei Mixed Input
+    text = getattr(chat_input, "text", "")
+    text = text.strip()
+    return text if text else None
+
+
 # =========================================================
 # Page config (MUST be first Streamlit command)
 # =========================================================
@@ -126,17 +149,33 @@ if auto_speak and not st.session_state.briefing_spoken:
 # Chat
 # =========================================================
 if not st.session_state.finished:
-    if user_input := st.chat_input(accept_audio=True, placeholder="Was möchtest du sagen?"):
-    # if user_input := st.chat_input("Was möchtest du sagen?"):
-        st.session_state.chat_history.append({"role": "user", "content": user_input})
-        
+    chat_input = st.chat_input(
+        accept_audio=True,
+        placeholder="Was möchtest du sagen?"
+    )
+
+    user_text = normalize_chat_input(chat_input)
+
+    if user_text:
+        st.session_state.chat_history.append({
+            "role": "user",
+            "content": user_text
+        })
+
         if auto_speak:
-            tts_browser_queued(user_input)
-        
-        ai_answer = get_chat_response(model, st.session_state.chat_history)
+            tts_browser_queued(user_text)
+
+        ai_answer = get_chat_response(
+            model,
+            st.session_state.chat_history
+        )
 
         if ai_answer:
-            st.session_state.chat_history.append({"role": "assistant", "content": ai_answer})
+            st.session_state.chat_history.append({
+                "role": "assistant",
+                "content": ai_answer
+            })
+
             if auto_speak:
                 tts_browser_queued(ai_answer)
 
