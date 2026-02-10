@@ -126,8 +126,8 @@ if auto_speak and not st.session_state.briefing_spoken:
 # Chat
 # =========================================================
 if not st.session_state.finished:
-    # if user_input := st.chat_input(accept_audio=True, placeholder="Was möchtest du sagen?"):
-    if user_input := st.chat_input("Was möchtest du sagen?"):
+    if user_input := st.chat_input(accept_audio=True, placeholder="Was möchtest du sagen?"):
+    # if user_input := st.chat_input("Was möchtest du sagen?"):
         st.session_state.chat_history.append({"role": "user", "content": user_input})
         
         if auto_speak:
@@ -145,8 +145,8 @@ if not st.session_state.finished:
 # Chat display
 # =====================================================
 if len(st.session_state.chat_history) == 1:
-    # st.info(f"**Bereit für das Gespräch.** Eröffnen Sie den Dialog, indem Sie unten eine Nachricht eingeben oder das Mikrofon nutzen.")
-    st.info(f"**Bereit für das Gespräch.** Eröffnen Sie den Dialog, indem Sie unten eine Nachricht eingeben.")
+    st.info(f"**Bereit für das Gespräch.** Eröffnen Sie den Dialog, indem Sie unten eine Nachricht eingeben oder das Mikrofon nutzen.")
+    # st.info(f"**Bereit für das Gespräch.** Eröffnen Sie den Dialog, indem Sie unten eine Nachricht eingeben.")
 
 is_dark_mode = st.get_option("theme.base") == "dark"
 
@@ -235,7 +235,7 @@ else:
     if "mentor_feedback" in st.session_state:
         st.markdown(st.session_state.mentor_feedback)
         
-               # -------- Export --------
+        # -------- Export --------
         full_export = (
             chat_transcript_text
             + "\n"
