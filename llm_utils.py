@@ -67,11 +67,35 @@ def get_mentor_feedback(model: str, messages: list) -> str:
 
     
 # --- 3. AUDIO TRANSCRIPTION ---    
-def transcribe_audio_via_groq(audio_bytes):
-    """Transcribe audio using Groq Whisper. Returns string text."""
+def transcribe_audio_via_groq(audio_input):
+    """
+    Transcribe audio using Groq Whisper.
+    Accepts bytes, UploadedFile, BytesIO, or Streamlit audio objects.
+    Returns string or None.
+    """
+
     if not groq_client:
-        return "Groq Client ist nicht initialisiert."
-    if not audio_bytes or len(audio_bytes) < 100:
+        return None
+
+    if not audio_input:
+        return None
+
+    # --- Normalize to raw bytes ---
+    audio_bytes = None
+
+    # Case 1: raw bytes
+    if isinstance(audio_input, (bytes, bytearray)):
+        audio_bytes = audio_input
+
+    # Case 2: UploadedFile / BytesIO
+    elif hasattr(audio_input, "read"):
+        audio_bytes = audio_input.read()
+
+    # Case 3: Streamlit ChatInputValue.audio (dict-like)
+    elif isinstance(audio_input, dict):
+        audio_bytes = audio_input.get("data")
+
+    if not audio_bytes or not isinstance(audio_bytes, (bytes, bytearray)) or len(audio_bytes) < 100:
         st.warning("Audio-Aufnahme war zu kurz oder leer.")
         return None
 
@@ -80,15 +104,18 @@ def transcribe_audio_via_groq(audio_bytes):
         audio_file.name = "input.wav"
         audio_file.seek(0)
 
-        with st.spinner("Transkribiere Audio… Dies kann einige Momente dauern."):
+        with st.spinner("Transkribiere Audio…"):
             transcription = groq_client.audio.transcriptions.create(
                 file=audio_file,
                 model="whisper-large-v3",
                 response_format="text"
             )
 
-        # Return only the text
-        return transcription.text if hasattr(transcription, "text") else transcription
+        # Groq may return str or object depending on SDK version
+        if isinstance(transcription, str):
+            return transcription.strip()
+
+        return getattr(transcription, "text", None)
 
     except Exception as e:
         st.error(f"Fehler bei der Transkription: {e}")
