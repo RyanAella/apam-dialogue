@@ -99,7 +99,13 @@ with st.sidebar:
     )
 
     titles = [v["ui_title"] for v in SCENARIOS.values()]
-    selected_title = st.selectbox("Wähle ein Szenario:", titles)
+    st.markdown("### 🎓 Wähle ein Szenario")
+
+    selected_title = st.selectbox(
+        label="",
+        options=titles,
+        label_visibility="collapsed"
+    )
 
     scenario_key = next(
         k for k, v in SCENARIOS.items() if v["ui_title"] == selected_title
@@ -228,7 +234,7 @@ if not st.session_state.finished:
     col1, col2 = st.columns(2)
 
     with col1:
-        if st.button("Gespräch zurücksetzen", type="secondary", use_container_width=True):
+        if st.button("Gespräch zurücksetzen", use_container_width=True):
             st.session_state.chat_history = st.session_state.chat_history[:2]
             st.session_state.finished = False
             st.rerun()
