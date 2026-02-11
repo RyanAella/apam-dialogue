@@ -77,7 +77,6 @@ for k, v in defaults.items():
 # Sidebar
 # =========================================================
 with st.sidebar:
-    st.header("Audio Einstellungen")
 
     st.subheader("Ausgabe (Hören)")
     auto_speak = st.toggle("Alles automatisch vorlesen", value=False)
@@ -90,20 +89,21 @@ with st.sidebar:
         )
         st.rerun()
 
+    # =========================================================
+    # Scenario Selection
+    # =========================================================
+    st.divider()
 
-# =========================================================
-# Scenario Selection
-# =========================================================
-SCENARIOS = get_scenarios(
-    os.stat("scenarios").st_mtime
-)
+    SCENARIOS = get_scenarios(
+        os.stat("scenarios").st_mtime
+    )
 
-titles = [v["ui_title"] for v in SCENARIOS.values()]
-selected_title = st.selectbox("Wähle ein Szenario:", titles)
+    titles = [v["ui_title"] for v in SCENARIOS.values()]
+    selected_title = st.selectbox("Wähle ein Szenario:", titles)
 
-scenario_key = next(
-    k for k, v in SCENARIOS.items() if v["ui_title"] == selected_title
-)
+    scenario_key = next(
+        k for k, v in SCENARIOS.items() if v["ui_title"] == selected_title
+    )
 
 
 # =========================================================
