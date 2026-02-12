@@ -14,7 +14,7 @@ Jedes Szenario, z.B. mit dem internen Namen `<szenario_name>`, besteht aus den f
     *   `prompts/partner/<szenario_name>_partner_prompt.txt`
     *   `prompts/mentor/<szenario_name>_mentor_prompt.txt`
 
-**Wichtig:** Der `<szenario_name>` (z.B. `yvonne` oder `difficulties`) muss für alle vier Dateien exakt gleich sein, damit die App sie korrekt zuordnen kann.
+**Wichtig:** Der `<szenario_name>` muss für alle vier Dateien exakt gleich sein, damit die App sie korrekt zuordnen kann.
 
 #### 2. Der Zweck der einzelnen Dateien
 
