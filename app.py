@@ -56,26 +56,77 @@ st.set_page_config(
 # =========================================================
 is_dark_mode = st.get_option("theme.base") == "dark"
 
-bg_sidebar = "#0F172A" if is_dark_mode else "#F8FAFC"
-sidebar_border = "#1E293B" if is_dark_mode else "#E2E8F0"
+
+sidebar_class = "dark" if is_dark_mode else "light"
+st.markdown(f"""
+<script>
+const sidebar = document.querySelector('section[data-testid="stSidebar"]');
+if (sidebar) {{
+    sidebar.classList.add("{sidebar_class}");
+}}
+</script>
+""", unsafe_allow_html=True)
+
+
+sidebar_gradient = (
+    "linear-gradient(180deg, #1E293B 0%, #111827 100%)"
+    if is_dark_mode else
+    "linear-gradient(180deg, #F8FAFC 0%, #E5E7EB 100%)"
+)
+sidebar_text_color = "#F8FAFC" if is_dark_mode else "#1F2937"
+sidebar_border = "#2D3748" if is_dark_mode else "#CBD5E1"
 
 main_surface = "#0B1220" if is_dark_mode else "#FFFFFF"
 surface_border = "#1E293B" if is_dark_mode else "#E5E7EB"
 
 primary_color = "#2563EB"
 
+# Toggle / Checkbox / Radio
+toggle_bg = "#1E293B" if is_dark_mode else "#E2E8F0"
+toggle_text = "#F8FAFC" if is_dark_mode else "#1F2937"
+
 st.markdown(f"""
 <style>
 
 /* ===== Sidebar ===== */
-section[data-testid="stSidebar"] {{
-    background-color: {bg_sidebar} !important;
-    border-right: 1px solid {sidebar_border};
+section[data-testid="stSidebar"].dark {{
+    background: linear-gradient(180deg, #1E293B 0%, #111827 100%);
+    border-right: 1px solid #2D3748;
 }}
 
+section[data-testid="stSidebar"].light {{
+    background: linear-gradient(180deg, #F8FAFC 0%, #F1F5F9 100%);
+    border-right: 1px solid #CBD5E1;
+}}
+
+/* Sidebar Container */
 section[data-testid="stSidebar"] .block-container {{
     padding-top: 2rem;
     padding-bottom: 2rem;
+}}
+
+/* Textfarbe je Theme */
+section[data-testid="stSidebar"].dark * {{
+    color: #F8FAFC !important; /* hell auf dunkel */
+}}
+
+section[data-testid="stSidebar"].light * {{
+    color: #1F2937 !important; /* dunkel auf hell */
+}}
+            
+/* Selectbox moderner */
+section[data-testid="stSidebar"].dark .stSelectbox div[data-baseweb="select"] {{
+    background-color: #1E293B !important;
+    border: 1px solid #2D3748 !important;
+    color: #F8FAFC !important;
+    border-radius: 8px;
+}}
+
+section[data-testid="stSidebar"].light .stSelectbox div[data-baseweb="select"] {{
+    background-color: #E2E8F0 !important;
+    border: 1px solid #CBD5E1 !important;
+    color: #1F2937 !important;
+    border-radius: 8px;
 }}
 
 /* ===== Main Surface ===== */
@@ -99,6 +150,7 @@ section[data-testid="stSidebar"] .block-container {{
 /* ===== Primary Button ===== */
 button[kind="primary"] {{
     background-color: {primary_color} !important;
+    color: #FFFFFF !important;
     border-radius: 10px !important;
     border: none !important;
 }}
@@ -262,11 +314,15 @@ for msg in st.session_state.chat_history:
         bg_color = "#3C3C3C" if is_dark_mode else "#F0F0F0"
         text_color = "#FFFFFF" if is_dark_mode else "#000000"
 
+    alignment = "flex-end" if msg["role"] == "user" else "flex-start"
+
     st.markdown(
         f"""
-        <div class="chat-bubble"
-            style="background-color:{bg_color}; color:{text_color};">
-            <b>{label}:</b> {msg['content']}
+        <div style="display:flex; justify-content:{alignment};">
+            <div class="chat-bubble"
+                style="background-color:{bg_color}; color:{text_color}; max-width:65%;">
+                <b>{label}:</b><br>{msg['content']}
+            </div>
         </div>
         """,
         unsafe_allow_html=True

@@ -32,7 +32,7 @@ Jedes Szenario, z.B. mit dem internen Namen `<szenario_name>`, besteht aus den f
     *   **Definiert das Feedback.** Diese Datei gibt dem KI-Mentor die Anweisungen, worauf er bei der Analyse des Gesprächs achten und welches Feedback er geben soll.
 
 *   `prompts/system/<szenario_name>_system_prompt.txt`
-    *   **Technische Basis.** Enthält übergeordnete Anweisungen für das KI-Modell. Muss in der Regel nicht oft geändert werden.
+    *   **Technische Basis.** Enthält übergeordnete Anweisungen für das KI-Modell.
 
 #### 3. Worauf beim Anpassen zu achten ist
 
