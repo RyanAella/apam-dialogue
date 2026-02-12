@@ -69,7 +69,7 @@ st.markdown(f"""
 
 /* ===== Sidebar ===== */
 section[data-testid="stSidebar"] {{
-    background-color: {bg_sidebar};
+    background-color: {bg_sidebar} !important;
     border-right: 1px solid {sidebar_border};
 }}
 
