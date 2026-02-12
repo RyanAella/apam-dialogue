@@ -339,8 +339,11 @@ if not st.session_state.finished:
 
     with col1:
         if st.button("Gespräch zurücksetzen", use_container_width=True):
-            st.session_state.chat_history = st.session_state.chat_history[:2]
-            st.session_state.finished = False
+            # st.session_state.chat_history = st.session_state.chat_history[:2]
+            # st.session_state.finished = False
+            
+            # Force a full reload of the current scenario from disk
+            st.session_state.pop("current_scenario", None)
             st.rerun()
 
     with col2:
