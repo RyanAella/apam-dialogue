@@ -52,6 +52,62 @@ st.set_page_config(
 
 
 # =========================================================
+# Global UI Styling
+# =========================================================
+is_dark_mode = st.get_option("theme.base") == "dark"
+
+bg_sidebar = "#0F172A" if is_dark_mode else "#F8FAFC"
+sidebar_border = "#1E293B" if is_dark_mode else "#E2E8F0"
+
+main_surface = "#0B1220" if is_dark_mode else "#FFFFFF"
+surface_border = "#1E293B" if is_dark_mode else "#E5E7EB"
+
+primary_color = "#2563EB"
+
+st.markdown(f"""
+<style>
+
+/* ===== Sidebar ===== */
+section[data-testid="stSidebar"] {{
+    background-color: {bg_sidebar};
+    border-right: 1px solid {sidebar_border};
+}}
+
+section[data-testid="stSidebar"] .block-container {{
+    padding-top: 2rem;
+    padding-bottom: 2rem;
+}}
+
+/* ===== Main Surface ===== */
+.main-surface {{
+    background-color: {main_surface};
+    padding: 2.5rem;
+    border-radius: 18px;
+    border: 1px solid {surface_border};
+}}
+
+/* ===== Chat Bubble ===== */
+.chat-bubble {{
+    padding: 12px 16px;
+    border-radius: 18px;
+    margin-bottom: 10px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+    font-size: 0.95rem;
+    line-height: 1.5;
+}}
+
+/* ===== Primary Button ===== */
+button[kind="primary"] {{
+    background-color: {primary_color} !important;
+    border-radius: 10px !important;
+    border: none !important;
+}}
+
+</style>
+""", unsafe_allow_html=True)
+
+
+# =========================================================
 # App setup
 # =========================================================
 load_dotenv()
@@ -141,9 +197,9 @@ if st.session_state.current_scenario != scenario_key:
 # =========================================================
 # Scenario Briefing (GUI ONLY)
 # =========================================================
-st.subheader("Briefing für das Gespräch")
+st.markdown("## Briefing")
 
-with st.status("📋 Deine Aufgabenstellung & Szenario-Details", expanded=True, state="complete"):
+with st.status("Deine Aufgabenstellung & Szenario-Details", expanded=True, state="complete"):
     st.markdown(st.session_state.user_instruction)
 
 if auto_speak and not st.session_state.briefing_spoken:
@@ -193,8 +249,6 @@ if len(st.session_state.chat_history) == 1:
     st.info(f"**Bereit für das Gespräch.** Eröffnen Sie den Dialog, indem Sie unten eine Nachricht eingeben oder das Mikrofon nutzen.")
     # st.info(f"**Bereit für das Gespräch.** Eröffnen Sie den Dialog, indem Sie unten eine Nachricht eingeben.")
 
-is_dark_mode = st.get_option("theme.base") == "dark"
-
 for msg in st.session_state.chat_history:
     if msg["role"] == "system":
         continue
@@ -210,14 +264,8 @@ for msg in st.session_state.chat_history:
 
     st.markdown(
         f"""
-        <div style='
-            background-color:{bg_color};
-            color:{text_color};
-            padding:12px 16px;
-            border-radius:18px;
-            margin-bottom:8px;
-            box-shadow: 0px 2px 6px rgba(0,0,0,0.2);
-        '>
+        <div class="chat-bubble"
+            style="background-color:{bg_color}; color:{text_color};">
             <b>{label}:</b> {msg['content']}
         </div>
         """,
@@ -249,6 +297,8 @@ else:
     # Mentor Feedback Section
     # -------------------------------------------------
     st.header("Mentor Feedback")
+
+    st.markdown("<hr style='margin-top:0; border-color:#2D3748;'>", unsafe_allow_html=True)
     
     # Generate plaintext transcript for export
     chat_transcript_text = "GESPRÄCHSPROTOKOLL\n" + "=" * 20 + "\n\n"
