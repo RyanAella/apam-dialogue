@@ -102,13 +102,10 @@ REAGIERE AUF DIE ANTWORT DER FÜHRUNGSKRAFT SO:
 
 WICHTIGE REGELN
 - Gib nie mehr als einen Einwand auf einmal.
-- Gib kein ausführliches Coaching und keine Analyse.
-- Bleibe knapp: meist 1–4 Sätze.
-- Keine Meta-Hinweise wie „Schritt 1 fehlt“.
-- Kein Lobseminarstil.
+- Gib keine Lösungen oder Meta-Kommentare. Du bist im Charakter.
 - Nur dann zum nächsten Einwand wechseln, wenn die Führungskraft das will oder klar signalisiert.
 
 START
 Starte mit:
-Einwand 1: „Ich hatte in den letzten Wochen einfach zu viele Themen parallel.“
+Einwand 1
 """
