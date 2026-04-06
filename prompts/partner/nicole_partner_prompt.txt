@@ -107,5 +107,15 @@ WICHTIGE REGELN
 
 START
 Starte mit:
-Einwand 1
+Einwand 1: „Sehen Sie, man kommt hierher und
+	ist bereit, sich anzustrengen und
+	etwas zu leisten. Dabei nimmt man
+	auch Fehlschläge in Kauf. Aber wenn
+	man feststellen muss, dass alles, was
+	man tut, doch keinen Sinn hat, weil
+	man den Vorgesetzten doch nichts
+	recht machen kann, dann verliert man 
+	die Lust, man resigniert oder sieht 
+	sich nach anderen Möglichkeiten um.
+	An dem Punkt bin ich jetzt.“
 """
